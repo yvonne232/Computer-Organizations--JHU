@@ -93,6 +93,12 @@ main:
 		BL cpubexp
 		MOV r8, r0	// Save e in r8
 
+		# Debug Print e and phi
+        	LDR r0, =debug_e
+        	MOV r1, r8
+        	MOV r2, r7
+        	BL printf
+
 		
 		# Compute private key exponent
 		MOV r0, r8        // r0 = e
@@ -138,6 +144,7 @@ msg_e: .asciz "Public exponent e = %d\n"
 invalid_e_msg: .asciz "\nInvalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
 msg_d: .asciz "Private exponent d = %d\n"
 
+debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
 trying_x: .asciz "Trying x = %d\n"
 
 # End Main
@@ -370,8 +377,6 @@ cpubexp:
 		CMP r0, #1
 		BNE InvalidE
 		
-		# Valid e, return in r0
-		MOV r0, r5
 		B Return_cpubexp
 
 	InvalidE:
@@ -380,10 +385,13 @@ cpubexp:
 		B PromptE	
 	
 	Return_cpubexp:
+		# Valid e, return in r
+
 		LDR lr, [sp, #0]
 		LDR r4, [sp, #4]
 		LDR r5, [sp, #8]
 		ADD sp, sp, #12
+		MOV r0, r5
 		MOV pc, lr
 
 # End cpubexp
