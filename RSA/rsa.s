@@ -299,33 +299,40 @@ cprivexp:
     	STR r8, [sp, #20]   // temp remainder
 
 	# x starts from 1
-	MOV r2, #1 
+	MOV r9, #1 
 	MOV r4, r0        // Save e in r4
     	MOV r5, r1        // Save phi in r5  
-	MOV r3, #10000
+	LDR r3, =10000
 
 	d_loop:
-		CMP r2, r3
-    		BGE not_found    // if x >= 10000, give up
+		CMP r9, r3
+    		BGE not_found       // If x >= 10000, give up
+
+		MUL r6, r2, r5      // r6 = x * phi
+    		ADD r6, r6, #1      // r6 = 1 + x * phi
 		
-		MUL r6, r2, r5     // r6 = x * phi
-    		ADD r6, r6, #1     // r6 = 1 + x * phi
+		PUSH {r2}           // Save x before division
 
-    		MOV r7, r6         // Save numerator
+    		MOV r0, r6          // numerator
+    		MOV r1, r4          // e
+    		BL __aeabi_idivmod  // Call IDIVMOD (returns quotient in r0, remainder in r1)
 
-    		MOV r0, r6         // numerator
-    		MOV r1, r4         // divisor = e
-    		BL __aeabi_idiv    // r0 = quotient
+		POP {r2}            // Restore x after division
 
-    		MOV r6, r0         // Save d candidate
+		MOV r8, r0          // save quotient
+    		MOV r7, r1          // save remainder
 
-    		MUL r0, r6, r4     // d * e
-    		SUB r0, r7, r0     // remainder = numerator - d * e
+    		CMP r7, #0
+    		BEQ d_found         // if remainder == 0, found d
 
-    		CMP r0, #0
-    		BEQ d_found
+    		// CMP r1, #0          // Check remainder
+    		// BEQ d_found         // If remainder = 0, we found it
 
-		ADD r2, r2, #1
+		LDR r0, =trying_x
+    		MOV r1, r9
+    		BL printf
+
+		ADD r9, r9, #1
     		B d_loop	
 
 	
@@ -333,7 +340,9 @@ cprivexp:
 		// Now numerator = (1 + x * phi), and divisible by e
     		// r6 already = numerator
 
-    		MOV r0, r6       // numerator
+    		MOV r0, r8      // numerator = 1+x*phi
+    		MOV r1, r4      // e
+    		BL __aeabi_idiv // final division to get d
 
 		LDR lr, [sp, #0]
     		LDR r4, [sp, #4]
