@@ -6,6 +6,8 @@ main:
 	# r5 - store q in r5
 	# r6 - store modulus n = p * q in r6
 	# r7 - store phi(n) = (p-1) * (q-1) in r7
+	# r8 - store e in r8
+	# r9 - store d in r9
 	
 	SUB sp, sp, #28
 	STR lr, [sp, #0]
@@ -30,41 +32,25 @@ main:
 	BL modulo
 	MOV r6, r0	// save modulus n = p * q in r6
 
-	ComputeModulusAndPhi:
-		SUB r7, r4, #1	// p = p-1
-		SUB r8, r5, #1  // q = q-1
-		MUL r7, r7, r8	// fi(n) =  (p - 1)(q - 1); store fi(n) in r7
-
-		LDR r0, =msg_phi
-    		MOV r1, r7
-    		BL printf
+	# Calculate fi(n) = (p-1)(q-1); and store fi(n) in r7
+	MOV r0, r4
+	MOV r1, r5
+	BL computePhi
+	MOV r7, r0	// Save phi in r7
 		
-		# Compute public key component (e)
-		MOV r0, r7	// Pass phi in r7 to the function
-		BL cpubexp
-		MOV r8, r0	// Save e in r8
-
-		# Debug Print e and phi
-        	LDR r0, =debug_e
-        	MOV r1, r8
-        	MOV r2, r7
-        	BL printf
-
-		
-		# Compute private key exponent
-		MOV r0, r8        // r0 = e
-    		MOV r1, r7        // r1 = phi
-		BL cprivexp
-		MOV r9, r0	// Store d in r9
-		
-		# Print d
-    		LDR r0, =msg_d
-    		MOV r1, r9
-    		BL printf
-
-		B Done
+	# Compute public key component (e)
+	MOV r0, r7	// Pass phi in r7 to the function
+	BL cpubexp
+	MOV r8, r0	// Save e in r8
 	
+	# Compute private key exponent
+	MOV r0, r8        // r0 = e
+    	MOV r1, r7        // r1 = phi
+	BL cprivexp
+	MOV r9, r0	// Store d in r9
 
+	B Done
+	
 					
 	Done:
 		LDR lr, [sp, #0]
@@ -92,7 +78,7 @@ msg_pubkey: .asciz "Public Key (n, e) = (%d, %d)\n"
 msg_n: .asciz "Modulus n = %d\n"
 msg_phi: .asciz "Totient phi(n) = %d\n"
 msg_e: .asciz "Public exponent e = %d\n"
-invalid_e_msg: .asciz "\nInvalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
+invalid_e_msg: .asciz "Invalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
 msg_d: .asciz "Private exponent d = %d\n"
 
 debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
@@ -123,6 +109,7 @@ isPrime:
 	MOV r5, #2      // Divisor starts from 2
 	MOV r6, r4, LSR #1   // r6 = n / 2
 	MOV r7, #0	// Flag number, assume it is not prime
+
 	
 	checkPrimeLoop:
 		CMP r5, r6
@@ -264,6 +251,14 @@ cprivexp:
     		MOV r0, r6      // numerator = 1+x*phi
     		MOV r1, r4      // e
     		BL __aeabi_idiv // final division to get d
+		MOV r4, r0
+
+		# Print d
+    		LDR r0, =msg_d
+    		MOV r1, r4
+    		BL printf
+		
+		MOV r0, r4
 		B Return_cprivexp
 		
 	Return_cprivexp:
@@ -458,7 +453,7 @@ modulo:
 	MOV r4, r0	// save n in r4
 
 	LDR r0, =msg_n
-    	MOV r1, r6
+    	MOV r1, r4
     	BL printf
 	
 	MOV r0, r4
@@ -466,3 +461,30 @@ modulo:
 	LDR r4, [sp, #4]
 	ADD sp, sp, #8
 	MOV pc, lr
+# End modulo
+
+.text
+computePhi:
+	# Function Purpose: Calculate Phi
+	# Input: r0 - p, r1 - q
+	# output: r0 - phi
+	
+	SUB sp, sp, #8
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+
+	SUB r0, r0, #1	// p = p-1
+	SUB r1, r1, #1  // q = q-1
+	MUL r4, r0, r1	// fi(n) =  (p - 1)(q - 1); store fi(n) in r4
+	
+	LDR r0, =msg_phi
+    	MOV r1, r4
+    	BL printf
+	
+	MOV r0, r4
+	LDR lr, [sp, #0]
+	LDR r4, [sp, #4]
+	ADD sp, sp, #8
+	MOV pc, lr
+
+# End computePhi
