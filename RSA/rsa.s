@@ -1,8 +1,14 @@
 .text
 .global main
 main:
-	SUB sp, sp, #4
+	# Program Dictionary
+	# r4 - store p in r4
+	# r5 - store q in r5
+	
+	SUB sp, sp, #12
 	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+	STR r5, [sp, #8]
 	
 	PromptP:
 		# Prompt and read p
@@ -11,26 +17,57 @@ main:
 		LDR r0, =scan_format
 		LDR r1, =p
 		BL scanf
-	
+		
+		# Store p in r4
+		LDR r4, =p
+		LDR r4, [r4]
+
 		# Load p into r0 and check for prime
-		LDR r0, =p
-		LDR r0, [r0]
+		MOV r0, r4
 		BL isPrime
 	
 		# If it is not prime, prompt again for p
 		CMP r0, #1
     		BNE NotPrimeP
+		
+		# If it is prime, proceed to q
+		B PromptQ
     	
 	NotPrimeP:
    		LDR r0, =not_prime
     		BL printf
     		B PromptP
 	
-	LDR lr, [sp, #0]
-	ADD sp, sp, #4
-	MOV pc, lr
+	PromptQ:
+		# Prompt and read q
+    		LDR r0, =prompt_q
+    		BL printf
+    		LDR r0, =scan_format
+    		LDR r1, =q
+    		BL scanf
 
+		# Load q into r0 and check for prime
+    		LDR r0, =q
+    		LDR r0, [r0]
+    		BL isPrime
+		
+		CMP r0, #1
+    		BNE NotPrimeQ
 
+		# If prime, finish
+    		B Done
+
+	NotPrimeQ:
+    		LDR r0, =not_prime
+    		BL printf
+    		B PromptQ
+	
+	Done:
+		LDR lr, [sp, #0]
+		LDR r4, [sp, #4]
+		LDR r5, [sp, #8]
+		ADD sp, sp, #12
+		MOV pc, lr
 
 .data
 prompt_p: .asciz "Enter prime number p (p < 50): "
@@ -38,13 +75,21 @@ prompt_q: .asciz "Enter prime number q (q < 50): "
 scan_format: .asciz "%d"
 p: .word 0
 q: .word 0
-not_prime: .asciz "\nThe number is not a prime. Please enter again.\n"
-is_prime:    .asciz "\nThe number is a prime.\n"
+not_prime: .asciz "\The number is not a prime. Please enter again.\n"
+is_prime:    .asciz "\The number is a prime.\n"
+
+# End Main
 
 .text
 isPrime:
 	# r0 = number to check
 	# returns r0 = 1 if prime, 0 otherwise
+
+	# Program Dictionary
+	# r4 - Store input number into r4
+	# r5 - Divisor, which starts from 2
+	# r6 - n / 2
+	# r7 - flag number, assume it is not prime
 
 	SUB sp, sp, #20
 	STR lr, [sp, #0]
@@ -91,4 +136,4 @@ isPrime:
 		ADD sp, sp, #20
 		MOV pc, lr
 
-	
+# End isPrime	
