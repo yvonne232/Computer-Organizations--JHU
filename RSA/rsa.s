@@ -129,7 +129,7 @@ main:
 		
 		# Print d
     		LDR r0, =msg_d
-    		LDR r1, [r9]
+    		MOV r1, r9
     		BL printf
 
 		B Done
@@ -167,6 +167,8 @@ msg_phi: .asciz "Totient phi(n) = %d\n"
 msg_e: .asciz "Public exponent e = %d\n"
 invalid_e_msg: .asciz "\nInvalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
 msg_d: .asciz "Private exponent d = %d\n"
+
+trying_x: .asciz "Trying x = %d\n"
 
 # End Main
 
@@ -272,7 +274,7 @@ gcd:
 		LDR r4, [sp, #4]
 		ADD sp, sp, #8
 		MOV pc, lr
-
+.data
 # End gcd
 
 .text
@@ -288,44 +290,70 @@ cprivexp:
     	# r4 = remainder
     	# r5 = d (result)
 
-	SUB sp, sp, #16
-	STR lr, [sp, #0]
-	STR r4, [sp, #4]
-    	STR r5, [sp, #8]
-    	STR r6, [sp, #12]
+	SUB sp, sp, #24
+    	STR lr, [sp, #0]
+    	STR r4, [sp, #4]    // Save e
+    	STR r5, [sp, #8]    // Save phi
+    	STR r6, [sp, #12]   // temp numerator
+    	STR r7, [sp, #16]   // temp d candidate
+    	STR r8, [sp, #20]   // temp remainder
 
 	# x starts from 1
 	MOV r2, #1 
 	MOV r4, r0        // Save e in r4
-    	MOV r5, r1        // Save phi in r5      
+    	MOV r5, r1        // Save phi in r5  
+	MOV r3, #10000
 
 	d_loop:
-		MUL r3, r2, r5     // r3 = x * phi
-		ADD r3, r3, #1     // r3 = 1 + x * phi
+		CMP r2, r3
+    		BGE not_found    // if x >= 10000, give up
+		
+		MUL r6, r2, r5     // r6 = x * phi
+    		ADD r6, r6, #1     // r6 = 1 + x * phi
 
-		MOV r0, r3         // numerator
-    		MOV r1, r4        // e
-		BL __aeabi_idiv   // r0 = (1 + x * phi) / e
-		MOV r6, r0        // r6 = d candidate
+    		MOV r7, r6         // Save numerator
 
-		MUL r0, r6, r4    // r0 = d * e
-    		SUB r7, r3, r0    // r7 = numerator - d * e (remainder)
+    		MOV r0, r6         // numerator
+    		MOV r1, r4         // divisor = e
+    		BL __aeabi_idiv    // r0 = quotient
 
-		CMP r7, #0
-    		BEQ d_found       // Found valid d
+    		MOV r6, r0         // Save d candidate
+
+    		MUL r0, r6, r4     // d * e
+    		SUB r0, r7, r0     // remainder = numerator - d * e
+
+    		CMP r0, #0
+    		BEQ d_found
 
 		ADD r2, r2, #1
     		B d_loop	
 
 	
 	d_found:
-		MOV r0, r6        // Return d in r0
-		
+		// Now numerator = (1 + x * phi), and divisible by e
+    		// r6 already = numerator
+
+    		MOV r0, r6       // numerator
+
 		LDR lr, [sp, #0]
-		LDR r4, [sp, #4]
+    		LDR r4, [sp, #4]
     		LDR r5, [sp, #8]
     		LDR r6, [sp, #12]
-		ADD sp, sp, #16
-		MOV pc, lr
+    		LDR r7, [sp, #16]
+    		LDR r8, [sp, #20]
+    		ADD sp, sp, #24
+    		MOV pc, lr
 
-# End cpubexp
+	not_found:
+    		MOV r0, #-1        // return -1 if not found
+
+    		LDR lr, [sp, #0]
+    		LDR r4, [sp, #4]
+    		LDR r5, [sp, #8]
+    		LDR r6, [sp, #12]
+    		LDR r7, [sp, #16]
+		LDR r8, [sp, #20]
+    		ADD sp, sp, #24
+    		MOV pc, lr
+
+# End cprivexp
