@@ -102,8 +102,23 @@ main:
 		LDR r0, =msg_e
     		MOV r1, r8
     		BL printf
+	
+		# Check: if e <= 1
+		CMP r8, #1
+		BLE InvalidE
 		
+		# Check: if e >= phi
+		CMP r8, r7
+		BGE InvalidE
+
+		# Check: if gcd(e, phi) == 1
+
 		B Done
+	
+	InvalidE:
+		LDR r0, =invalid_e_msg
+		BL printf
+		B PromptE
 					
 	Done:
 		LDR lr, [sp, #0]
@@ -128,6 +143,7 @@ msg_pubkey: .asciz "Public Key (n, e) = (%d, %d)\n"
 msg_n: .asciz "Modulus n = %d\n"
 msg_phi: .asciz "Totient phi(n) = %d\n"
 msg_e: .asciz "Public exponent e = %d\n"
+invalid_e_msg: .asciz "\nInvalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
 
 # End Main
 
