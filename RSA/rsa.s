@@ -345,7 +345,7 @@ cprivexp:
     		LDR r6, [sp, #12]
     		LDR r7, [sp, #16]
     		LDR r8, [sp, #20]
-		LDR r9, [r9, #24]
+		LDR r9, [sp, #24]
     		ADD sp, sp, #28
     		MOV pc, lr
 
