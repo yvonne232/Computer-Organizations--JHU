@@ -20,38 +20,9 @@ main:
 	BL PromptForP
 	MOV r4, r0	// Save p in r4
 		
-	# If it is prime, proceed to q
-	B PromptQ
-	
-	PromptQ:
-		# Prompt and read q
-    		LDR r0, =prompt_q
-    		BL printf
-    		LDR r0, =scan_format
-    		LDR r1, =q
-    		BL scanf
-
-		# Store q in r5
-    		LDR r5, =q
-    		LDR r5, [r5]
-
-		# Load q into r0 and check for prime
-    		MOV r0, r5
-    		BL isPrime
-		
-		CMP r0, #1
-    		BNE NotPrimeQ
-
-		# If prime, finish
-    		B PromptPandQFinish
-
-	NotPrimeQ:
-    		LDR r0, =not_prime
-    		BL printf
-    		B PromptQ
-	
-	PromptPandQFinish:
-		B ComputeModulusAndPhi
+	# Prompt q and check if it is prime number
+	BL PromptForQ
+	MOV r5, r0	// Save q in r5
 
 	ComputeModulusAndPhi:
 		MUL r6, r4, r5	// n = p * q, n is the public key
@@ -423,3 +394,51 @@ PromptForP:
 		MOV pc, lr
 
 # End PromptForP
+
+.text
+PromptForQ
+	# Function Purpose: Prompt for q and validate if it is prime
+	# Input: no inputs
+	# Output: r0 - q
+	
+	SUB sp, sp, #8
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+
+	PromptQ:
+		# Prompt and read q
+    		LDR r0, =prompt_q
+    		BL printf
+    		LDR r0, =scan_format
+    		LDR r1, =q
+    		BL scanf
+
+		# Store q in r4
+    		LDR r4, =q
+    		LDR r4, [r4]
+
+		# Load q into r0 and check for prime
+    		MOV r0, r4
+    		BL isPrime
+		
+		CMP r0, #1
+    		BNE NotPrimeQ
+
+		# If prime, finish
+    		B Return_PromptForQ
+
+	NotPrimeQ:
+    		LDR r0, =not_prime
+    		BL printf
+    		B PromptQ
+
+	Return_PromptForQ:
+		LDR r0, =q
+		LDR r0, [r0]
+
+		LDR lr, [sp, #0]
+		LDR r4, [sp, #4]
+		ADD sp, sp, #8
+		MOV pc, lr
+	
+# End PromptForQ	
