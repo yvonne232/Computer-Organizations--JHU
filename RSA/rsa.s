@@ -90,7 +90,7 @@ main:
 		
 		# Compute public key component (e)
 		MOV r0, r7	// Pass phi in r7 to the function
-		B cpubexp
+		BL cpubexp
 		MOV r8, r0	// Save e in r8
 
 		
@@ -381,8 +381,8 @@ cpubexp:
 	
 	Return_cpubexp:
 		LDR lr, [sp, #0]
-		STR r4, [sp, #4]
-		STR r5, [sp, #8]
+		LDR r4, [sp, #4]
+		LDR r5, [sp, #8]
 		ADD sp, sp, #12
 		MOV pc, lr
 
