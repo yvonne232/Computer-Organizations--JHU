@@ -16,33 +16,12 @@ main:
 	STR r8, [sp, #20]
 	STR r9, [sp, #24]
 	
-	PromptP:
-		# Prompt and read p
-		LDR r0, =prompt_p
-		BL printf
-		LDR r0, =scan_format
-		LDR r1, =p
-		BL scanf
+	# Prompt p and check if it is prime number
+	BL PromptForP
+	MOV r4, r0	// Save p in r4
 		
-		# Store p in r4
-		LDR r4, =p
-		LDR r4, [r4]
-
-		# Load p into r0 and check for prime
-		MOV r0, r4
-		BL isPrime
-	
-		# If it is not prime, prompt again for p
-		CMP r0, #1
-    		BNE NotPrimeP
-		
-		# If it is prime, proceed to q
-		B PromptQ
-    	
-	NotPrimeP:
-   		LDR r0, =not_prime
-    		BL printf
-    		B PromptP
+	# If it is prime, proceed to q
+	B PromptQ
 	
 	PromptQ:
 		# Prompt and read q
@@ -386,12 +365,61 @@ cpubexp:
 	
 	Return_cpubexp:
 		# Valid e, return in r
+		LDR r0, =e    // load address of e
+    		LDR r0, [r0]  // load value of e into r0
 
 		LDR lr, [sp, #0]
 		LDR r4, [sp, #4]
 		LDR r5, [sp, #8]
 		ADD sp, sp, #12
-		MOV r0, r5
 		MOV pc, lr
 
 # End cpubexp
+
+.text
+PromptForP:
+	# Function Purpose: Prompt for p and validate if it is prime
+	# Input: no inputs
+	# Output: r0 - p
+	
+	SUB sp, sp, #8
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+
+	PromptP:
+		# Prompt and read p
+		LDR r0, =prompt_p
+		BL printf
+		LDR r0, =scan_format
+		LDR r1, =p
+		BL scanf
+		
+		# Store p in r4
+		LDR r4, =p
+		LDR r4, [r4]
+
+		# Load p into r0 and check for prime
+		MOV r0, r4
+		BL isPrime
+	
+		# If it is not prime, prompt again for p
+		CMP r0, #1
+    		BNE NotPrimeP
+
+		B Return_PromptForP
+	
+	NotPrimeP:
+   		LDR r0, =not_prime
+    		BL printf
+    		B PromptP
+	
+	Return_PromptForP:
+		LDR r0, =p
+		LDR r0, [r0]
+
+		LDR lr, [sp, #0]
+		LDR r4, [sp, #4]
+		ADD sp, sp, #8
+		MOV pc, lr
+
+# End PromptForP
