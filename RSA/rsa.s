@@ -214,13 +214,13 @@ isPrime:
 
 	CheckDone:
 		MOV r0, #1      // Is prime
-    		B Return
+    		B Return_primecheck
 
 	NotPrime:
     		MOV r0, #0
-		B Return
+		B Return_primecheck
 
-	Return:
+	Return_primecheck:
 		LDR lr, [sp, #0]
 		LDR r4, [sp, #4]
     		LDR r5, [sp, #8]
@@ -285,21 +285,24 @@ cprivexp:
 	# returns d in r0
 
 	# Program Dictionary
-    	# r2 = x counter
-    	# r3 = numerator = (1 + x * phi)
-    	# r4 = remainder
-    	# r5 = d (result)
+    	# r4 = Save e
+    	# r5 = Save phi
+	# r6 = temp numerator
+	# r7 = temp remainder
+	# r8 = temp quotient
+	# r9 = Save x counter
 
-	SUB sp, sp, #24
+	SUB sp, sp, #28
     	STR lr, [sp, #0]
-    	STR r4, [sp, #4]    // Save e
-    	STR r5, [sp, #8]    // Save phi
-    	STR r6, [sp, #12]   // temp numerator
-    	STR r7, [sp, #16]   // temp d candidate
-    	STR r8, [sp, #20]   // temp remainder
+    	STR r4, [sp, #4]   // Save e
+    	STR r5, [sp, #8]   // Save phi
+    	STR r6, [sp, #12]  // temp numerator
+    	STR r7, [sp, #16]  // temp remainder
+    	STR r8, [sp, #20]  // temp quotient
+    	STR r9, [sp, #24]  // Save x counter
 
 	# x starts from 1
-	MOV r9, #1 
+	MOV r9, #1        // x counter
 	MOV r4, r0        // Save e in r4
     	MOV r5, r1        // Save phi in r5  
 	LDR r3, =10000
@@ -308,16 +311,12 @@ cprivexp:
 		CMP r9, r3
     		BGE not_found       // If x >= 10000, give up
 
-		MUL r6, r2, r5      // r6 = x * phi
+		MUL r6, r9, r5      // r6 = x * phi
     		ADD r6, r6, #1      // r6 = 1 + x * phi
-		
-		PUSH {r2}           // Save x before division
 
     		MOV r0, r6          // numerator
     		MOV r1, r4          // e
     		BL __aeabi_idivmod  // Call IDIVMOD (returns quotient in r0, remainder in r1)
-
-		POP {r2}            // Restore x after division
 
 		MOV r8, r0          // save quotient
     		MOV r7, r1          // save remainder
@@ -325,44 +324,33 @@ cprivexp:
     		CMP r7, #0
     		BEQ d_found         // if remainder == 0, found d
 
-    		// CMP r1, #0          // Check remainder
-    		// BEQ d_found         // If remainder = 0, we found it
-
-		LDR r0, =trying_x
-    		MOV r1, r9
-    		BL printf
-
 		ADD r9, r9, #1
     		B d_loop	
 
 	
 	d_found:
-		// Now numerator = (1 + x * phi), and divisible by e
-    		// r6 already = numerator
+		// Recompute numerator = 1 + x * phi, in case the registers get weird
+    		MUL r6, r9, r5
+   		ADD r6, r6, #1
 
-    		MOV r0, r8      // numerator = 1+x*phi
+    		MOV r0, r6      // numerator = 1+x*phi
     		MOV r1, r4      // e
     		BL __aeabi_idiv // final division to get d
-
+		B Return_cprivexp
+		
+	Return_cprivexp:
 		LDR lr, [sp, #0]
     		LDR r4, [sp, #4]
     		LDR r5, [sp, #8]
     		LDR r6, [sp, #12]
     		LDR r7, [sp, #16]
     		LDR r8, [sp, #20]
-    		ADD sp, sp, #24
+		LDR r9, [r9, #24]
+    		ADD sp, sp, #28
     		MOV pc, lr
 
 	not_found:
     		MOV r0, #-1        // return -1 if not found
-
-    		LDR lr, [sp, #0]
-    		LDR r4, [sp, #4]
-    		LDR r5, [sp, #8]
-    		LDR r6, [sp, #12]
-    		LDR r7, [sp, #16]
-		LDR r8, [sp, #20]
-    		ADD sp, sp, #24
-    		MOV pc, lr
+		B Return_cprivexp
 
 # End cprivexp
