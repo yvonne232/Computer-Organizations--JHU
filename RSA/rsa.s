@@ -109,7 +109,9 @@ isPrime:
 	MOV r5, #2      // Divisor starts from 2
 	MOV r6, r4, LSR #1   // r6 = n / 2
 	MOV r7, #0	// Flag number, assume it is not prime
-
+	
+	CMP r4, #1
+	BLE NotPrime    // If n <= 1, it is not prime
 	
 	checkPrimeLoop:
 		CMP r5, r6
