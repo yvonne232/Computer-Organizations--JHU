@@ -87,45 +87,18 @@ main:
 		LDR r0, =msg_phi
     		MOV r1, r7
     		BL printf
-	
-		B PromptE
-
-	PromptE:
-		LDR r0, =prompt_e
-    		BL printf
-    		LDR r0, =scan_format
-    		LDR r1, =e
-    		BL scanf
 		
-		# Store e in r8
-		LDR r8, =e
-		LDR r8, [r8]
+		# Compute public key component (e)
+		MOV r0, r7	// Pass phi in r7 to the function
+		B cpubexp
+		MOV r8, r0	// Save e in r8
 
-		LDR r0, =msg_e
-    		MOV r1, r8
-    		BL printf
-	
-		# Check: if e <= 1
-		CMP r8, #1
-		BLE InvalidE
-		
-		# Check: if e >= phi
-		CMP r8, r7
-		BGE InvalidE
-
-		# Check: if gcd(e, phi) == 1
-		MOV r0, r8      // r0 = e
-		MOV r1, r7	// r1 = phi
-		BL gcd
-		CMP r0, #1
-		BNE InvalidE
 		
 		# Compute private key exponent
 		MOV r0, r8        // r0 = e
     		MOV r1, r7        // r1 = phi
 		BL cprivexp
-		# Store d in r9
-		MOV r9, r0
+		MOV r9, r0	// Store d in r9
 		
 		# Print d
     		LDR r0, =msg_d
@@ -134,10 +107,7 @@ main:
 
 		B Done
 	
-	InvalidE:
-		LDR r0, =invalid_e_msg
-		BL printf
-		B PromptE
+
 					
 	Done:
 		LDR lr, [sp, #0]
@@ -339,6 +309,7 @@ cprivexp:
 		B Return_cprivexp
 		
 	Return_cprivexp:
+
 		LDR lr, [sp, #0]
     		LDR r4, [sp, #4]
     		LDR r5, [sp, #8]
@@ -354,3 +325,65 @@ cprivexp:
 		B Return_cprivexp
 
 # End cprivexp
+
+.text
+cpubexp:
+	# Function purpose: compute public key component
+	# Prompt for e, validate e
+	# Input: r0 = phi
+    	# Output: r0 = valid e
+
+	SUB sp, sp, #12
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+	STR r5, [sp, #8]
+	
+	MOV r4, r0	// Save phi in r4
+
+	PromptE:
+		LDR r0, =prompt_e
+    		BL printf
+    		LDR r0, =scan_format
+    		LDR r1, =e
+    		BL scanf
+
+		# Store e in r5
+		LDR r5, =e
+		LDR r5, [r5]
+
+		LDR r0, =msg_e
+    		MOV r1, r5
+    		BL printf
+
+		# Check: if e <= 1
+		CMP r5, #1
+		BLE InvalidE
+		
+		# Check: if e >= phi
+		CMP r5, r4
+		BGE InvalidE
+
+		# Check: if gcd(e, phi) == 1
+		MOV r0, r5      // r0 = e
+		MOV r1, r4	// r1 = phi
+		BL gcd
+		CMP r0, #1
+		BNE InvalidE
+		
+		# Valid e, return in r0
+		MOV r0, r5
+		B Return_cpubexp
+
+	InvalidE:
+		LDR r0, =invalid_e_msg
+		BL printf
+		B PromptE	
+	
+	Return_cpubexp:
+		LDR lr, [sp, #0]
+		STR r4, [sp, #4]
+		STR r5, [sp, #8]
+		ADD sp, sp, #12
+		MOV pc, lr
+
+# End cpubexp
