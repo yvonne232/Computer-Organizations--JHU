@@ -24,15 +24,16 @@ main:
 	BL PromptForQ
 	MOV r5, r0	// Save q in r5
 
+	# Calculate modulo n = p * q; input r0 - p, r1 - q
+	MOV r0, r4
+	MOV r1, r5
+	BL modulo
+	MOV r6, r0	// save modulus n = p * q in r6
+
 	ComputeModulusAndPhi:
-		MUL r6, r4, r5	// n = p * q, n is the public key
 		SUB r7, r4, #1	// p = p-1
 		SUB r8, r5, #1  // q = q-1
 		MUL r7, r7, r8	// fi(n) =  (p - 1)(q - 1); store fi(n) in r7
-
-		LDR r0, =msg_n
-    		MOV r1, r6
-    		BL printf
 
 		LDR r0, =msg_phi
     		MOV r1, r7
@@ -396,7 +397,7 @@ PromptForP:
 # End PromptForP
 
 .text
-PromptForQ
+PromptForQ:
 	# Function Purpose: Prompt for q and validate if it is prime
 	# Input: no inputs
 	# Output: r0 - q
@@ -441,4 +442,27 @@ PromptForQ
 		ADD sp, sp, #8
 		MOV pc, lr
 	
-# End PromptForQ	
+# End PromptForQ
+
+.text
+modulo:
+	# Function Purpose: Calculate modulus n = p * q
+	# Input: r0 - p, r1 - q	
+	# Output: r0 - n
+	
+	SUB sp, sp, #8
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+	
+	MUL r0, r0, r1	// n = p * q, n is the public key
+	MOV r4, r0	// save n in r4
+
+	LDR r0, =msg_n
+    	MOV r1, r6
+    	BL printf
+	
+	MOV r0, r4
+	LDR lr, [sp, #0]
+	LDR r4, [sp, #4]
+	ADD sp, sp, #8
+	MOV pc, lr
