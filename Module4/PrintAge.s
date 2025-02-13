@@ -26,6 +26,12 @@ main:
 	LDR r1, [r1, #0]
 	BL printf
 
+	# Print the user's age with quotes
+        LDR r0, =output3
+        LDR r1, =age
+        LDR r1, [r1, #0]
+        BL printf
+
 	# Pop the stack record
 	LDR lr, [sp, #0]
 	ADD sp, sp, #4
@@ -33,9 +39,9 @@ main:
 
 .data
 	prompt1: .asciz "Enter your age:"
-	format1: .asciz "%d"
-	age: .word 0
+        format1: .asciz "%d"
+        age: .word 0
 	output1: .asciz "Your age is %d\n"
 	output2: .asciz "Your age is:\t%d\tyears old\n"
-
+	output3: .asciz "\"Your age is %d\"\n"
 
