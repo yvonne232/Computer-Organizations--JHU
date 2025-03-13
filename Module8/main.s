@@ -21,8 +21,6 @@ main:
 	# Call miles2kilometer function
 	MOV r0, r4
 	BL miles2kilometer
-	# Move kilometer to r7
-	MOV r7, r0
 	
 	# Print answer
 	MOV r1, r0
@@ -38,13 +36,22 @@ main:
 	LDR r0, =format_hours
 	LDR r1, =hours
 	BL scanf
-	# Move hours to r5
+	# Then read total miles
+	LDR r0, =prompt_miles
+	BL printf
+	LDR r0, =format_miles
+	LDR r1, =mile
+	BL scanf
+	
+	# Move hours to r5, and miles to r4
+	LDR r4, =mile
+	LDR r4, [r4]
 	LDR r5, =hours
 	LDR r5, [r5]
 
 	# R0: hours, R1: miles; call kph function
 	MOV r0, r5
-	MOV r1, r7
+	MOV r1, r4
 	BL kph
 	
 	# Print answer
