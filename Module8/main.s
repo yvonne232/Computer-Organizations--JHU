@@ -89,14 +89,14 @@ main:
 	BL InchesToFt	
 	
 	# Feet
-	MOV r5, r0
+	MOV r7, r0
 	# Remaining inches
-	MOV r6, r1
+	MOV r8, r1
 	# Print result
-	MOV r1, r5
+	MOV r1, r7
 	LDR r0, =output_feet
 	BL printf
-	MOV r1, r6
+	MOV r1, r8
 	LDR r0, =output_inch
 	BL printf
 

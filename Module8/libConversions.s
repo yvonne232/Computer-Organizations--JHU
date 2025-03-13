@@ -78,18 +78,21 @@ CToF:
 InchesToFt:
 	# InchesToFt (Inches to Feet)
 	# Push stack
-	SUB sp, sp, #4
+	SUB sp, sp, #8
 	STR lr, [sp]
+	STR r0, [sp, #4]
+	# explicitly save r0; if use MOV r2, r0, I always get error, don't know why 
 	
 	# Save original inches in r2
-	MOV r2, r0
+	# MOV r2, r0
 	MOV r1, #12
 	# r0 = r0 / 12 => feet
 	BL __aeabi_idiv
 	# Store feet in r3
 	MOV r3, r0
-	MOV r1, #12
+	LDR r2, [sp, #4]
 	# r4: total feet in inches
+	MOV r1, #12
 	MUL r4, r3, r1
 	# Store remaining inches in r1
 	SUB r1, r2, r4
@@ -97,7 +100,7 @@ InchesToFt:
 	
 	# Pop stack
 	LDR lr, [sp]
-	ADD sp, sp, #4
+	ADD sp, sp, #8
 	MOV pc, lr
 .data
 # End InchesToFt
