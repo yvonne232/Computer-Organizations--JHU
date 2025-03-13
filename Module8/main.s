@@ -5,6 +5,7 @@ main:
 	SUB sp, sp, #4
 	STR lr, [sp]
 	
+
 	# ---Call Function: miles2kilometer---
 	# Prompt for and read input
 	LDR r0, =prompt_miles
@@ -20,15 +21,16 @@ main:
 	# Call miles2kilometer function
 	MOV r0, r4
 	BL miles2kilometer
+	# Move kilometer to r7
+	MOV r7, r0
 	
 	# Print answer
 	MOV r1, r0
 	LDR r0, =output_km
 	BL printf
-
-	# Move kilometer to r4
-	MOV r4, r1
 	
+
+
 	# ---Call Function: kph---
 	# Prompt for and read input
 	LDR r0, =prompt_hours
@@ -42,13 +44,15 @@ main:
 
 	# R0: hours, R1: miles; call kph function
 	MOV r0, r5
-	MOV r1, r4
+	MOV r1, r7
 	BL kph
 	
 	# Print answer
 	MOV r1, r0
 	LDR r0, =output_kph
 	BL printf
+
+
 
 	#---Call Function: CToF---
 	# Prompt for and read input
@@ -58,21 +62,49 @@ main:
 	LDR r1, =celsius
 	BL scanf
 
+	LDR r0, =celsius
+	LDR r0, [r0]
 	# Call CToF function
 	BL CToF
 	MOV r6, r0
-
+	
+	# Print answer
 	MOV r1, r6
 	LDR r0, =output_fahrenheit
 	BL printf
-		
+
+
+
+	# ---Call Function: InchesToFt---
+	# Prompt for and read input
+	LDR r0, =prompt_inch
+	BL printf
+	LDR r0, =format_inch
+	LDR r1, =inches 
+	BL scanf
 	
+	LDR r0, =inches
+	LDR r0, [r0]
+	# Call the function
+	BL InchesToFt	
+	
+	# Feet
+	MOV r5, r0
+	# Remaining inches
+	MOV r6, r1
+	# Print result
+	MOV r1, r5
+	LDR r0, =output_feet
+	BL printf
+	MOV r1, r6
+	LDR r0, =output_inch
+	BL printf
+
 	# Pop stack
 	LDR lr, [sp]
 	ADD sp, sp, #4
 	MOV pc, lr
 
-	
 .data
 	prompt_miles: .asciz "Enter speed in miles: "
 	format_miles: .asciz "%d"
@@ -88,5 +120,12 @@ main:
 	format_celsius: .asciz "%d"
 	celsius: .word 0
 	output_fahrenheit: .asciz "Temperature in Fahrenheit: %d\n"
+	
+	prompt_inch: .asciz "Inches: "
+	format_inch: .asciz "%d"
+	inches: .word 0
+	output_feet: .asciz "Total feet:  %d\n"
+	output_inch: .asciz "Remaining inches: %d\n"
+
 	
 	

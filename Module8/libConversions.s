@@ -1,6 +1,7 @@
 .global miles2kilometer
 .global kph
 .global CToF
+.global InchesToFt
 
 .text
 miles2kilometer:
@@ -62,14 +63,43 @@ CToF:
 	MOV r1, #5
 	# r0 = r0/5
 	BL __aeabi_idiv
-	MOV r1, #32
 	# r0 = r0 + 32
-	ADD r0, r0, r1
+	ADD r0, r0, #32
 	
-	# Pop stacl
+	# Pop stack
 	LDR lr, [sp]
 	ADD sp, sp, #4
 	MOV pc, lr
 .data
 # End CToF
+
+
+.text
+InchesToFt:
+	# InchesToFt (Inches to Feet)
+	# Push stack
+	SUB sp, sp, #4
+	STR lr, [sp]
+	
+	# Save original inches in r2
+	MOV r2, r0
+	MOV r1, #12
+	# r0 = r0 / 12 => feet
+	BL __aeabi_idiv
+	# Store feet in r3
+	MOV r3, r0
+	MOV r1, #12
+	# r4: total feet in inches
+	MUL r4, r3, r1
+	# Store remaining inches in r1
+	SUB r1, r2, r4
+	# So, we return r0: total feet and r1: remaining inches
+	
+	# Pop stack
+	LDR lr, [sp]
+	ADD sp, sp, #4
+	MOV pc, lr
+.data
+# End InchesToFt
+	
 	 
