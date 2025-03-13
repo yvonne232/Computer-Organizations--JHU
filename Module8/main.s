@@ -8,6 +8,8 @@ main:
 
 	# ---Call Function: miles2kilometer---
 	# Prompt for and read input
+	LDR r0, =prompt_miles2kilometer
+	BL printf
 	LDR r0, =prompt_miles
 	BL printf
 	# Scanf
@@ -31,6 +33,8 @@ main:
 
 	# ---Call Function: kph---
 	# Prompt for and read input
+	LDR r0, =prompt_kph
+	BL printf
 	LDR r0, =prompt_hours
 	BL printf
 	LDR r0, =format_hours
@@ -63,6 +67,8 @@ main:
 
 	#---Call Function: CToF---
 	# Prompt for and read input
+	LDR r0, =prompt_CToF
+	BL printf
 	LDR r0, =prompt_celsius
 	BL printf
 	LDR r0, =format_celsius
@@ -84,6 +90,8 @@ main:
 
 	# ---Call Function: InchesToFt---
 	# Prompt for and read input
+	LDR r0, =prompt_InchesToFt
+	BL printf
 	LDR r0, =prompt_inch
 	BL printf
 	LDR r0, =format_inch
@@ -116,7 +124,8 @@ main:
 	prompt_miles: .asciz "Enter speed in miles: "
 	format_miles: .asciz "%d"
 	mile: .word 0
-	output_km: .asciz "Speed in kilometer: %d\n "
+	output_km: .asciz "Speed in kilometer: %d\n"
+	prompt_miles2kilometer: .asciz "Calling Function: miles2kilometer \n"
 	
 	prompt_hours: .asciz "Enter hours: "
 	format_hours: .asciz "%d"
@@ -125,17 +134,20 @@ main:
 	format_miles2: .asciz "%d"
 	mile2: .word 0
 	output_kph: .asciz "Kilometers per hour: %d\n"
+	prompt_kph: .asciz "\n Calling Function: kph \n"
 
 	prompt_celsius: .asciz "Enter temperature in Celsius: "
 	format_celsius: .asciz "%d"
 	celsius: .word 0
 	output_fahrenheit: .asciz "Temperature in Fahrenheit: %d\n"
+	prompt_CToF: .asciz "\n Calling Function: CToF \n"
 	
 	prompt_inch: .asciz "Inches: "
 	format_inch: .asciz "%d"
 	inches: .word 0
 	output_feet: .asciz "Total feet:  %d\n"
 	output_inch: .asciz "Remaining inches: %d\n"
+	prompt_InchesToFt: .asciz "\n Calling Function: InchesToFt \n"
 
 	
 	
