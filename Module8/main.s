@@ -37,14 +37,14 @@ main:
 	LDR r1, =hours
 	BL scanf
 	# Then read total miles
-	LDR r0, =prompt_miles
+	LDR r0, =prompt_miles2
 	BL printf
-	LDR r0, =format_miles
-	LDR r1, =mile
+	LDR r0, =format_miles2
+	LDR r1, =mile2
 	BL scanf
 	
 	# Move hours to r5, and miles to r4
-	LDR r4, =mile
+	LDR r4, =mile2
 	LDR r4, [r4]
 	LDR r5, =hours
 	LDR r5, [r5]
@@ -121,6 +121,9 @@ main:
 	prompt_hours: .asciz "Enter hours: "
 	format_hours: .asciz "%d"
 	hours: .word 0
+	prompt_miles2: .asciz "Enter speed in miles: "
+	format_miles2: .asciz "%d"
+	mile2: .word 0
 	output_kph: .asciz "Kilometers per hour: %d\n"
 
 	prompt_celsius: .asciz "Enter temperature in Celsius: "

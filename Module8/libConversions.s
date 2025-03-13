@@ -37,16 +37,26 @@ kph:
 	# move r1 to r0, so r0 could be used for miles2kilometer
 	MOV R0, R1
 	BL miles2kilometer
-	# r0 is now kilometer
+	# r0 is now kilomete
+
 	# r0 = r0 / hours
 	MOV r1, r2
 	BL __aeabi_idiv
+
+	# Print DEBUG: kph result
+    	MOV r1, r4
+    	LDR r0, =debug_kph
+    	BL printf
+
+	MOV r0, r4
 	
 	# Pop stack
 	LDR lr, [sp]
 	ADD sp, sp, #4
 	MOV pc, lr
 .data
+debug_km: .asciz "DEBUG: Kilometers = %d\n"
+debug_kph: .asciz "DEBUG: KPH Result = %d\n"
 # End kph
 	
 .text
