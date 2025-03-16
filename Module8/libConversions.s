@@ -28,8 +28,9 @@ miles2kilometer:
 kph:
 	# kph(int hours, int miles)
 	# Push stack
-	SUB sp, sp, #4
+	SUB sp, sp, #8
 	STR lr, [sp]
+	STR r0, [sp, #4]
 
 	# r0 is hours, r1 is miles
 	# r2 is now hours
@@ -47,7 +48,7 @@ kph:
 
 	# r0 = r0 / hours
 	MOV r0, r3
-	MOV r1, r2
+	LDR r0, [sp, #4]
 	BL __aeabi_idiv
 
 	# Print DEBUG: kph result
