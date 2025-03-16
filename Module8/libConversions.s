@@ -3,6 +3,12 @@
 .global CToF
 .global InchesToFt
 
+# Function: miles2kilometer
+# Purpose: Convert miles to kilometers
+# Input:r0 - miles
+# Output: r0 - Kilometers
+# Comment: Since 1.61 is float and we need special registers for floating numbers. Using 161/100 we bypass floating point registers and operations
+# To achieve better precision, we could use 1610/1000 or even 16100/10000. This way, we preserve more decimal places
 .text
 miles2kilometer:
 	# miles2kilometer(int miles)
@@ -11,7 +17,6 @@ miles2kilometer:
 	STR lr, [sp]
 	
 	# r0 = r0 * 161 / 100
-	# Since 1.61 is float, we need special registers for float number and this avoids that
 	MOV r1, #161
 	MUL r0, r0, r1
 	MOV r1, #100
@@ -24,47 +29,54 @@ miles2kilometer:
 .data
 # END miles2kilometer
 
+# Function: kph
+# Purpose: Calculate kilometers per hour
+# Input: r0 - hours, r1 - miles
+# Output: r0 - kph
 .text
 kph:
 	# kph(int hours, int miles)
 	# Push stack
-	SUB sp, sp, #8
+	SUB sp, sp, #12
 	STR lr, [sp]
 	STR r0, [sp, #4]
+	# Has to store in the stack. Otherwise it keeps giving wrong results.
 
 	# r0 is hours, r1 is miles
-	# r2 is now hours
-	MOV R2, R0
 	# move r1 to r0, so r0 could be used for miles2kilometer
 	MOV R0, R1
 	BL miles2kilometer
 	# r0 is now kilometer
-	
-	MOV r3, r0
-	# Debug print: kilometers
-    	MOV r1, r3
+
+	STR r0, [sp, #8]
+
+	# Debug: Print kilometers
+    	MOV r1, r0
     	LDR r0, =debug_km
     	BL printf
 
 	# r0 = r0 / hours
-	MOV r0, r3
-	LDR r0, [sp, #4]
+	LDR r0, [sp, #8]
+	LDR r1, [sp, #4]
 	BL __aeabi_idiv
 
-	# Print DEBUG: kph result
-    	MOV r1, r0
-    	LDR r0, =debug_kph
-    	BL printf
+	STR r0, [sp, #8]
+
+	LDR r0, [sp, #8]
 	
 	# Pop stack
 	LDR lr, [sp]
-	ADD sp, sp, #4
+	ADD sp, sp, #12
 	MOV pc, lr
 .data
 debug_km: .asciz "DEBUG: Kilometers = %d\n"
 debug_kph: .asciz "DEBUG: KPH Result = %d\n"
 # End kph
-	
+
+# Function: CToF
+# Purpose: Convert celsius to Fahrenheit
+# Input: r0 - celsius
+# Output: r0 - fahrenheit	
 .text
 CToF:
 	#CToF (Celsius to Fahrenheit)	
@@ -90,6 +102,10 @@ CToF:
 # End CToF
 
 
+# Function: InchesToFt
+# Purpose: Convert inches to feet
+# Input: r0 - inches
+# Output: r0 - feet; r1 - remaining inches
 .text
 InchesToFt:
 	# InchesToFt (Inches to Feet)
@@ -99,13 +115,13 @@ InchesToFt:
 	STR r0, [sp, #4]
 	# explicitly save r0; if use MOV r2, r0, I always get error, don't know why 
 	
-	# Save original inches in r2
 	# MOV r2, r0
 	MOV r1, #12
 	# r0 = r0 / 12 => feet
 	BL __aeabi_idiv
 	# Store feet in r3
 	MOV r3, r0
+	# r2 - total inches
 	LDR r2, [sp, #4]
 	# r4: total feet in inches
 	MOV r1, #12
