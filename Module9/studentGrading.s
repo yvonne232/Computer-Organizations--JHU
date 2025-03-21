@@ -2,7 +2,7 @@
 .global main
 main:
 	# main	
-	# Purpose: Prompt for and read grades, and then call printGrades function and print grades
+	# Purpose: Prompt for and read name and grades, and then call printGrades function and print grading
 
 	# Push stack
 	SUB sp, sp, #4
@@ -11,7 +11,7 @@ main:
 	# Prompt for and read grades and name
 	LDR r0, =prompt_name
 	BL printf
-	LDR r0, =fprmat_name
+	LDR r0, =format_name
 	LDR r1, =name
 	BL scanf
 	
@@ -23,6 +23,7 @@ main:
 	
 	# print name
 	LDR r0, =output_name
+	LDR r1, =name
 	BL printf
 
 	# Call printGrades function
@@ -36,14 +37,13 @@ main:
 	MOV pc, lr
 
 .data
-prompt_score: .asciz "\nEnter student average grade between 0-100: "
+prompt_score: .asciz "Enter student average grade between 0-100: \n"
 prompt_name: .asciz "\nEnter student name: "
 format_score: .asciz "%d"
 format_name: .asciz "%s"
-output_name: "Student's name is
 name: .space 50
 grade: .word 0
-output_name: "Student is %s. \n"
+output_name: .asciz "\nStudent is %s. \n"
 
 # End Main	
 
@@ -63,7 +63,7 @@ printGrades:
 	MOV r4, r0
 
 	# Print error message if r4 < 0 or r4 > 100
-	# If use ORR, always get error. Not sure why
+	# If I use ORR way, always get error. Not sure why
 	CMP r4, #0
 	BLT ErrorMsg
 	CMP r4, #100
@@ -89,7 +89,7 @@ printGrades:
 		# Purpose: print error message
 		LDR r0, =error
 		BL printf
-		# B PrintDone has to be put here. Don't know why though. I tried different ways and only this works.
+		# B PrintDone has to be put here. I tried different ways and only this works.
 		B printDone
 	
 	printA:
