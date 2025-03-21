@@ -8,14 +8,24 @@ main:
 	SUB sp, sp, #4
 	STR lr, [sp]
 
-	# Prompt for and read grades
-	LDR r0, =prompt
+	# Prompt for and read grades and name
+	LDR r0, =prompt_name
 	BL printf
-	LDR r0, =format
+	LDR r0, =fprmat_name
+	LDR r1, =name
+	BL scanf
+	
+	LDR r0, =prompt_score
+	BL printf
+	LDR r0, =format_score
 	LDR r1, =grade
 	BL scanf
 	
-	# Load r0
+	# print name
+	LDR r0, =output_name
+	BL printf
+
+	# Call printGrades function
 	LDR r0, =grade
 	LDR r0, [r0]
 	BL printGrades
@@ -26,9 +36,14 @@ main:
 	MOV pc, lr
 
 .data
-prompt: .asciz "\nEnter a grade between 0-100: "
-format: .asciz "%d"
+prompt_score: .asciz "\nEnter student average grade between 0-100: "
+prompt_name: .asciz "\nEnter student name: "
+format_score: .asciz "%d"
+format_name: .asciz "%s"
+output_name: "Student's name is
+name: .space 50
 grade: .word 0
+output_name: "Student is %s. \n"
 
 # End Main	
 
@@ -46,23 +61,13 @@ printGrades:
 	
 	# Store r0 in r4
 	MOV r4, r0
-	
-	# Check if the input is 0-100
-	MOV r0, #0
+
+	# Print error message if r4 < 0 or r4 > 100
+	# If use ORR, always get error. Not sure why
 	CMP r4, #0
-	ADDGE r0, r0, #1
-	MOV r1, #0
+	BLT ErrorMsg
 	CMP r4, #100
-	ADDLE r1, r1, #1
-	ORR r0, r0, r1
-
-	# Print error message if r0 = 0
-	CMP r0, #1
-	BNE ErrorMsg
-	B elseError
-
-	elseError:
-
+	BGT ErrorMsg
 
 	# If grade is 90-100, then print grade A message
 	CMP r4, #90
@@ -125,8 +130,6 @@ printGrades:
     		MOV pc, lr
 	
 	
-
-
 
 .data
 error: .asciz "Grade must be 0-100.\n "
