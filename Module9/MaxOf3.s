@@ -1,5 +1,6 @@
 .text
 .global main
+main:
 	# Main
 	# Purpose: call findMaxOf3(int val1, int val2, int val3) function and find the largest one
 
@@ -31,7 +32,7 @@
 	LDR r0, [r0]
 	LDR r1, =val2
 	LDR r1, [r1]
-	LDR r2, =val2
+	LDR r2, =val3
 	LDR r2, [r2]
 
 	BL findMaxOf3
@@ -49,7 +50,7 @@
 .data
 prompt1: .asciz "Enter first value: "
 prompt2: .asciz "Enter second value: "
-prompt3: .asciz "Enter third value"
+prompt3: .asciz "Enter third value: "
 format: .asciz "%d"
 output: .asciz "Maximum value is %d. \n"
 val1: .word 0
@@ -81,6 +82,8 @@ findMaxOf3:
 	LDR lr, [sp]
 	ADD sp, sp, #4
 	MOV pc, lr
+
+# End findMaxOf3
 
 	
 	
