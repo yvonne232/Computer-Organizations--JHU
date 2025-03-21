@@ -57,11 +57,12 @@ printGrades:
 	ORR r0, r0, r1
 
 	# Print error message if r0 = 0
-	CMP r1, #1
+	CMP r0, #1
 	BNE ErrorMsg
 	B elseError
 
 	elseError:
+
 
 	# If grade is 90-100, then print grade A message
 	CMP r4, #90
