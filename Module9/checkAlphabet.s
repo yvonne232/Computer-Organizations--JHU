@@ -32,15 +32,11 @@ main:
 	LDRNE r0, =msg_false
 	BL printf
 
-	BL isAlpha_bitwise
-
-
 	# Pop stack
 	LDR lr, [sp]
 	ADD sp, sp, #4
 	MOV pc, lr
-		
-	
+			
 
 .data
 prompt: .asciz "Enter a character: "
@@ -97,42 +93,3 @@ isAlpha_logical:
 
 # End isAlpha_logical
 
-.text
-isAlpha_bitwise:
-	
-	# Push stack
-	SUB sp, sp, #4
-	STR lr, [sp]
-
-	# Change to lower case first
-	ORR r0, r0, #0x20
-	CMP r0, #0x61
-	BLT notAlpha2
-	CMP r0, #0x7A
-	BGT notAlpha2
-
-	# Else, find Alpha
-	B alphaFound2
-
-
-	notAlpha2:
-		LDR r0, =msg_false_noLogical
-		BL printf
-		B EndCheck2
-
-	alphaFound2:
-		LDR r0, =msg_true_noLogical
-		BL printf
-		B EndCheck2
-	
-	EndCheck2:
-		# Pop stack
-		LDR lr, [sp]
-		ADD sp, sp, #4
-		MOV pc, lr
-	
-.data
-msg_false_noLogical: .asciz "It is not an alphabetic character. (non logical) \n"	
-msg_true_noLogical: .asciz " It is an alphabetic character. (non logical) \n"
-
-# End isAlpha_noLogical	
