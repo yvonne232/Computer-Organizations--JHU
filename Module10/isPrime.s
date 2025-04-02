@@ -37,6 +37,45 @@ main:
 		MOV r6, r4, LSR #1 
 		MOV r5, #2
 		MOV r7, #0
+
+		# Check if a number is a prime	
+		checkPrimeLoop:
+			# If r5 is larger than n/2, then ends this lop
+			CMP r5, r6
+			BGT endCheckPrimeLoop
+
+			# Calculate remainder
+			MOV r0, r4
+			MOV r1, r5
+			BL __aeabi_idiv
+			# r8 is quotient
+			MOV r8, r0
+
+			# r9 = quotient * divisor
+			MUL r9, r8, r5
+			# r9 is remainder
+			SUB r9, r4, r9	
+
+			# If remainder is 0, then r7 = 1, which means it is divisible
+			CMP r9, #0
+			MOVEQ r7, #1
+
+			# Go to next iteration: r5 += 1
+			ADD r5, r5, #1
+			B checkPrimeLoop
+		
+		endCheckPrimeLoop:
+			# If r7 = 0, then it is not a prime number
+			CMP r7, #0
+			BNE notPrime
+			B getNextInput
+
+			# Else, it is prime number
+			LDR r0, =prime_msg
+			MOV r4, r1
+			BL printf
+			B getNextInput
+
 		
 			
 		# Print out the error message and get next valid input
@@ -59,19 +98,7 @@ main:
 			CMP r5, r6
 			BGT endCheckPrimeLoop
 
-			
-		
-		endCheckPrimeLoop:
-			# If r7 = 0, then it is not a prime number
-			CMP r7, #0
-			BNE notPrime
-			B getNextInput
 
-			# Else, it is prime number
-			LDR r0, =prime_msg
-			MOV r4, r1
-			BL printf
-			B getNextInput
 		
 		notPrime:
 			LDR r0, =notPrime_msg
