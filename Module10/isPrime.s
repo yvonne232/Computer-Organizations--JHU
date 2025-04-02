@@ -30,7 +30,6 @@ main:
 		# Error checking: if input is 0, 1, 2 or any negative number other than -1 are entered, print the error message and get next input from user
 		CMP r4, #3
 		BLT InvalidInput
-		B getNextInput
 
 		# Check if the input is a prime number
 		# r6 = r4 / 2
@@ -71,10 +70,7 @@ main:
 			B getNextInput
 
 			# Else, it is prime number
-			LDR r0, =prime_msg
-			MOV r4, r1
-			BL printf
-			B getNextInput
+			B isPrime
 
 		
 			
@@ -82,6 +78,7 @@ main:
 		InvalidInput: 
 			LDR r0, =errorMsg
 			BL printf
+			B getNextInput
 
 		# get the next user input, and continue the sentinel loop 
 		getNextInput:
@@ -92,19 +89,18 @@ main:
 			BL scanf
 			B startSentinelLoop
 		
-		# Check if a number is a prime	
-		checkPrimeLoop:
-			# If r5 is larger than n/2, then ends this lop
-			CMP r5, r6
-			BGT endCheckPrimeLoop
-
-
-		
 		notPrime:
 			LDR r0, =notPrime_msg
 			MOV r1, r4
 			BL printf
+			B getNextInput
 		
+
+		isPrime:
+			LDR r0, =prime_msg
+			MOV r4, r1
+			BL printf
+			B getNextInput
 
 	endSentinelLoop:
 		# End the sentinel loop if user input is -1
@@ -122,5 +118,5 @@ promptMsg: .asciz "\nEnter a number: (-1 to quit)\n"
 number: .word 0
 scanFormat: .asciz "%d"
 errorMsg: .asciz "Error: Input must be >2 or -1 to quit.\n"
-notPrime_msg: .asciz "Number %d  is not prime.\n"
-prime_msg: .acsiz "Number %d is prime. \n"
+notPrime_msg: .asciz "Number %d is not prime.\n"
+prime_msg: .asciz "Number %d is prime. \n"
