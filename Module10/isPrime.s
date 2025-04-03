@@ -6,12 +6,16 @@ main:
 	# r4 - save user input number
 	# r5 - divisor, sentinel loop input, from 2 to n/2
 	# r6 - upper bound of the numbers, n/2
+	# r7 - flag for whether the number is prime. 1 means it is prime, 0 means it is not.
+	# r8 - quotient. User Input // r5
+	# r9 - remainder when checking if it is divisible
 
-	SUB sp, sp, #12
+	SUB sp, sp, #16
 	STR lr, [sp, #0]
 	STR r4, [sp, #4]
 	STR r5, [sp, #8]
 	STR r6, [sp, #12]
+	STR r7, [sp, #16]
 
 	# Initialize the loop, prompt the user for the input
 	LDR r0, =promptMsg
@@ -33,13 +37,19 @@ main:
 
 		# Check if the input is a prime number
 		# r6 = r4 / 2
+		# LSR way is only for unsigned integers, which is correct here.
 		MOV r6, r4, LSR #1 
 		MOV r5, #2
 		MOV r7, #0
+		
+		# Debug section for myself. Comment it out now.
+		# LDR r0, =printR6Format  
+		# MOV r1, r6               
+		# BL printf                
 
-		# Check if a number is a prime	
+		# Loop: Check if a number is a prime	
 		checkPrimeLoop:
-			# If r5 is larger than n/2, then ends this lop
+			# If r5 is larger than n/2, then end this loop
 			CMP r5, r6
 			BGT endCheckPrimeLoop
 
@@ -63,12 +73,11 @@ main:
 			ADD r5, r5, #1
 			B checkPrimeLoop
 		
+		# If r5 is larger then n/2, then end this loop
 		endCheckPrimeLoop:
 			# If r7 = 0, then it is not a prime number
 			CMP r7, #0
 			BNE notPrime
-			B getNextInput
-
 			# Else, it is prime number
 			B isPrime
 
@@ -89,19 +98,21 @@ main:
 			BL scanf
 			B startSentinelLoop
 		
+		# If it is not prime number, then print not prime message and get next user input
 		notPrime:
 			LDR r0, =notPrime_msg
 			MOV r1, r4
 			BL printf
 			B getNextInput
 		
-
+		# If it is prime number, then print prime message and get next user input
 		isPrime:
 			LDR r0, =prime_msg
-			MOV r4, r1
+			MOV r1, r4
 			BL printf
 			B getNextInput
-
+	
+	# End the sentinel loop when user input is -1
 	endSentinelLoop:
 		# End the sentinel loop if user input is -1
 		# Pop stack
@@ -109,7 +120,8 @@ main:
 		LDR r4, [sp, #4]
 		LDR r5, [sp, #8]
 		LDR r6, [sp, #12]
-		ADD sp, sp, #12
+		LDR r7, [sp, #16]
+		ADD sp, sp, #16
 		MOV pc, lr 
 	
 
@@ -120,3 +132,5 @@ scanFormat: .asciz "%d"
 errorMsg: .asciz "Error: Input must be >2 or -1 to quit.\n"
 notPrime_msg: .asciz "Number %d is not prime.\n"
 prime_msg: .asciz "Number %d is prime. \n"
+
+printR6Format: .asciz "r6 = %d\n"
