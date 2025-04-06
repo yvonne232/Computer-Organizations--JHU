@@ -9,7 +9,7 @@ main:
 	# r8 - user answer; higher(h) or lower(l) or correct(c)
 
 	# Push stack
-	SUB sp, sp, #20
+	SUB sp, sp, #24
 	STR lr, [sp, #0]
 	STR r4, [sp, #4]
 	STR r5, [sp, #8]
@@ -55,8 +55,8 @@ main:
 		BL scanf
 
 		# Store user answer in r8; It is char, so use LDRB
-		LDRB r8, =user_answer
-		LDRB r8, [r8]
+		LDR r9, =user_answer
+		LDRB r8, [r9]
 		
 		# If it is c, then it is correct
 		CMP r8, #'c'
@@ -97,7 +97,7 @@ main:
 		LDR r6, [sp, #12]
 		LDR r7, [sp, #16]
 		LDR r8, [sp, #20]
-		ADD sp, sp, #20
+		ADD sp, sp, #24
 		MOV pc, lr
 
 .data
@@ -106,7 +106,7 @@ format_max: .asciz "%d"
 max: .word 0
 guessMsg: .asciz "My guess is %d. \n"
 ifCorrect_msg: .asciz "Is this number higher (h), lower (l), or correct(c)? \n"
-answer_format: .asciz "%c"
-user_answer: .byte 0
-correctMsg: .asciz "I guesses it! Your number is %d. \n"
+answer_format: .asciz " %c"
+user_answer: .word 0
+correctMsg: .asciz "I guessed it! Your number is %d. \n"
 
