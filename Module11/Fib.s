@@ -2,6 +2,7 @@
 .global main
 main:
 	# Program dictionary
+	# r0 - fib function input
 	
 	# Push stack
 	SUB sp, sp, #4
@@ -34,7 +35,7 @@ main:
 prompt: .asciz "\nEnter a number to calculate Fibonacci:"
 scanFormat: .asciz "%d"
 number: .word 0
-output: .asciz "\nFibonacci(%d) = %d\n"
+output: .asciz "\nFibonacci = %d\n"
 
 # End Main
 
@@ -51,7 +52,8 @@ Fib:
 	STR r4, [sp, #4]
 	STR r5, [sp, #8]
 	STR r6, [sp, #12]
-
+	
+	# Save input number in r4
 	MOV r4, r0
 
 	# Python:
@@ -62,7 +64,7 @@ Fib:
     	# return fib(n - 1) + fib(n - 2)
 	
 
-	# If n == 0 or n == 1 (n<=1)  return 0
+	# If n == 0 or n == 1 (n<=1)  return n 
 	CMP r4, #1
 	BGT Else
 	MOV r0, r4
