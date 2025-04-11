@@ -22,17 +22,14 @@ main:
 	# If r0 is less than 0, print error messgae
 	CMP r0, #0
 	BLT ErrorMsg
+	
 	# Else, call recursion function
-	B CallRecursionFunc
-
-	CallRecursionFunc:
-		# Else, call Fib recursion function
-		B Fib
-		# Print output
-		MOV r1, r0
-		LDR r0, =output
-		BL printf
-		B EndProgram
+	BL Fib
+    	# Print output
+    	MOV r1, r0
+    	LDR r0, =output
+    	BL printf
+    	B EndProgram
 
 	ErrorMsg:
 		LDR r0, =error
@@ -118,5 +115,4 @@ Fib:
 	
 	
 # End Fib
-.data
 
