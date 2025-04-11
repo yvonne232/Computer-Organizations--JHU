@@ -19,6 +19,11 @@ main:
 	LDR r0, [r0]
 	BL Fib
 
+	# Print output
+	MOV r1, r0
+	LDR r0, =output
+	BL printf
+	
 	# Pop stack
 	LDR lr, [sp, #0]
 	ADD sp, sp, #4
@@ -29,6 +34,7 @@ main:
 prompt: .asciz "\nEnter a number to calculate Fibonacci:"
 scanFormat: .asciz "%d"
 number: .word 0
+output: .asciz "\nFibonacci(%d) = %d\n"
 
 # End Main
 
