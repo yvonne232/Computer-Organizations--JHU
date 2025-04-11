@@ -32,7 +32,7 @@ main:
 	
 
 .data
-prompt: .asciz "\nEnter a number to calculate Fibonacci:"
+prompt: .asciz "\nEnter a number to calculate Fibonacci: "
 scanFormat: .asciz "%d"
 number: .word 0
 output: .asciz "\nFibonacci = %d\n"
