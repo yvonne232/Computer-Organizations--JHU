@@ -63,6 +63,9 @@ Fib:
         #	return 1
     	# return fib(n - 1) + fib(n - 2)
 	
+	# Error Checking: if n is less than 0, print error message
+	CMP r4, #0
+	BLT ErrorMsg
 
 	# If n == 0 or n == 1 (n<=1)  return n 
 	CMP r4, #1
@@ -89,8 +92,13 @@ Fib:
 		# return fib(n-1) + fib(n-2)
 		ADD r0, r5, r6
 		B Return
+	
+	# Print Error Message
+	ErrorMsg:
+		LDR r0, =error
+		BL printf
+		B Return	
 				
-
 	# Return the function
 	Return:
 		# Pop the stack
@@ -103,4 +111,5 @@ Fib:
 	
 	
 # End Fib
-
+.data
+error: .asciz "Input must be equal to or greater than 0.\n "
