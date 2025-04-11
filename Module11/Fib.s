@@ -15,20 +15,35 @@ main:
 	LDR r1, =number
 	BL scanf
 
-	# Call Fib recursion function
+	# Load number into r0 as function input
 	LDR r0, =number
 	LDR r0, [r0]
-	BL Fib
-
-	# Print output
-	MOV r1, r0
-	LDR r0, =output
-	BL printf
 	
-	# Pop stack
-	LDR lr, [sp, #0]
-	ADD sp, sp, #4
-	MOV pc, lr
+	# If r0 is less than 0, print error messgae
+	CMP r0, #0
+	BLT ErrorMsg
+	# Else, call recursion function
+	B CallRecursionFunc
+
+	CallRecursionFunc:
+		# Else, call Fib recursion function
+		B Fib
+		# Print output
+		MOV r1, r0
+		LDR r0, =output
+		BL printf
+		B EndProgram
+
+	ErrorMsg:
+		LDR r0, =error
+		BL printf
+		B EndProgram
+	
+	EndProgram:
+		# Pop stack
+		LDR lr, [sp, #0]
+		ADD sp, sp, #4
+		MOV pc, lr
 	
 
 .data
@@ -36,6 +51,7 @@ prompt: .asciz "\nEnter a number to calculate Fibonacci: "
 scanFormat: .asciz "%d"
 number: .word 0
 output: .asciz "\nFibonacci = %d\n"
+error: .asciz "Input must be equal to or greater than 0.\n "
 
 # End Main
 
@@ -63,9 +79,6 @@ Fib:
         #	return 1
     	# return fib(n - 1) + fib(n - 2)
 	
-	# Error Checking: if n is less than 0, print error message
-	CMP r4, #0
-	BLT ErrorMsg
 
 	# If n == 0 or n == 1 (n<=1)  return n 
 	CMP r4, #1
@@ -91,12 +104,6 @@ Fib:
 
 		# return fib(n-1) + fib(n-2)
 		ADD r0, r5, r6
-		B Return
-	
-	# Print Error Message
-	ErrorMsg:
-		LDR r0, =error
-		BL printf
 		B Return	
 				
 	# Return the function
@@ -112,4 +119,4 @@ Fib:
 	
 # End Fib
 .data
-error: .asciz "Input must be equal to or greater than 0.\n "
+
