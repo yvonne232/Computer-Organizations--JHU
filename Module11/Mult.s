@@ -7,7 +7,7 @@ main:
 		
 	# Push Stack
 	SUB sp, sp, #4
-	STR lr, [sp, #4]
+	STR lr, [sp, #0]
 	
 	# Prompt for m
 	LDR r0, =prompt_m
@@ -29,18 +29,26 @@ main:
 	LDR r1, =n
 	LDR r1, [r1]
 
-	# Error checking: if n >= 1
+	# Error checking: if n >= 1 (Since base case is n==1, n should be larger than or equal to 1)
 	CMP r1, #1
 	BLT ErrorMsg
 	# Else, call Mult recursion function
 	BL Mult
+	B PrintResult
 
 	ErrorMsg:
-		# If n < 1, print error message
+		# If n < 1, print error message 
 		LDR r0, =error_msg
 		BL printf
 		B EndProgram
-
+	
+	PrintResult:
+		# Print result
+		MOV r1, r0
+		LDR r0, =output_msg
+		BL printf
+		B EndProgram
+		
 	EndProgram:
 		# Pop stack
 		LDR lr, [sp, #0]
@@ -55,6 +63,7 @@ scanFormat: .asciz "%d"
 m: .word 0
 n: .word 0
 error_msg: .asciz "\n n must be equal to or larger than 1.\n"
+output_msg: .asciz "\n Result of mult(m, n) = %d\n"
 
 # End Main
 
@@ -90,12 +99,13 @@ Mult:
 	BL Mult
 	ADD r0, r4, r0
 	B Return
-
+	
+	# Base Case scenario
 	BaseCase:
+		# Base case: if n==1, return m
 		MOV r0, r4
 		B Return
 		
-
 	# Return the function
 	Return:
 		# Pop Stack
