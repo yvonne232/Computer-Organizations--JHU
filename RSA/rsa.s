@@ -21,25 +21,36 @@ main:
 	STR r9, [sp, #24]
 	
 	# Main Menu
-	LDR r0, =menu_text
-    	BL printf
+	menu_loop:
+		LDR r0, =menu_text
+    		BL printf
 
-    	LDR r0, =scan_format
-    	LDR r1, =menu_choice
-    	BL scanf
+    		LDR r0, =scan_format
+    		LDR r1, =menu_choice
+    		BL scanf
 
-    	LDR r0, =menu_choice
-    	LDR r0, [r0]
+    		LDR r0, =menu_choice
+    		LDR r0, [r0]
 
-    	CMP r0, #1
-    	BEQ generate_keys  
+    		CMP r0, #1
+    		BEQ do_generate_keys
 	
-	CMP r0, #2
-	BEQ encrypt_message
+		CMP r0, #2
+		BEQ encrypt_message
+		
+		CMP r0, #4
+    		BEQ Done
 	
-	B Done
+		B menu_loop     @ re-show menu if input was invalid
 	
-					
+	do_generate_keys:
+    		BL generate_keys
+    		B menu_loop
+
+	do_encrypt_message:
+    		BL encrypt_message
+    		B menu_loop
+				
 	Done:
 		LDR lr, [sp, #0]
 		LDR r4, [sp, #4]
@@ -69,19 +80,26 @@ msg_phi: .asciz "Totient phi(n) = %d\n"
 msg_e: .asciz "Public exponent e = %d\n"
 invalid_e_msg: .asciz "Invalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
 msg_d: .asciz "Private exponent d = %d\n"
+n_val: .word 0
+e_val: .word 0
 
 debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
 trying_x: .asciz "Trying x = %d\n"
 
-menu_text: .asciz "Select an option:\n1 - Generate Public and Private Keys\n2 - Encrypt a Message\n3 - Decrypt a Message\n4 - Exit\n"
+menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 - Encrypt a Message\n3 - Decrypt a Message\n4 - Exit\n\n"
 menu_choice: .word 0
 
 msg_input_plaintext: .asciz "Enter a plaintext message (no spaces): "
 plaintext: .space 256
+format_int: .asciz "%d "
 file_encrypted: .asciz "encrypted.txt"
 file_plaintext: .asciz "plaintext.txt"
 mode_write: .asciz "w"
 mode_read: .asciz "r"
+msg_char:   .asciz "Char: %c\n"
+msg_ascii:  .asciz "ASCII: %d\n"
+msg_enc:    .asciz "Encrypted: %d\n"
+
 
 
 # End Main
@@ -137,6 +155,13 @@ generate_keys:
     	MOV r1, r7        // r1 = phi
 	BL cprivexp
 	MOV r9, r0	// Store d in r9
+
+	# Store n and e permanently
+	LDR r0, =n_val
+    	STR r6, [r0]
+
+    	LDR r0, =e_val
+    	STR r8, [r0]
 
 	B generateKeys_Done
 	
@@ -578,10 +603,27 @@ encrypt_message:
 	# 
 
 	# Program Dictionary:
-	# Continue from r9, store 
+	# r4 - store n in r4
+	# r5 - store e in r5 
+	# r6 - store file handle in r6
 	
 	SUB sp, sp, #4
 	STR lr, [sp, #0]
+	
+	# Load n and e back from memory
+	LDR r0, =n_val
+    	LDR r4, [r0]
+
+    	LDR r0, =e_val
+    	LDR r5, [r0]
+
+    	LDR r0, =msg_n	@ Debug: print n and e
+    	MOV r1, r4
+    	BL printf
+
+    	LDR r0, =msg_e
+    	MOV r1, r4
+    	BL printf
 
 	LDR r0, =msg_input_plaintext
     	BL printf
@@ -589,17 +631,100 @@ encrypt_message:
     	LDR r1, =plaintext
     	BL scanf
 
+
 	LDR r0, =file_encrypted
     	LDR r1, =mode_write
     	BL fopen
-    	MOV r10, r0                   // r10: file handle for output
+    	MOV r6, r0           @ r10 = file handle
 
-	LDR r1, =plaintext
+    	@ Load plaintext address into r1
+    	LDR r1, =plaintext
 
-	LDR lr, [sp, #0]
-	ADD sp, sp, #4
-	MOV pc, lr
+	encrypt_loop:
+    		LDRB r2, [r1], #1     @ Load next byte, increment pointer
+    		CMP r2, #0
+    		BEQ encrypt_done      @ End of string
+
+		@ Debug print: current character
+    		LDR r0, =msg_char
+    		MOV r1, r2
+    		BL printf
+
+		@ Debug print: ASCII value
+    		LDR r0, =msg_ascii
+    		MOV r1, r2
+    		BL printf
+
+    		@ Convert r2 to integer m and encrypt: c = m^e mod n
+    		MOV r0, r2            @ m in r0
+    		MOV r1, r4            @ e
+    		MOV r2, r5            @ n
+    		BL pow                @ result c in r0
+
+    		@ Write c to file
+    		MOV r2, r0              @ c to r2
+
+		@ Debug print: Encrypted result
+    		LDR r0, =msg_enc
+    		MOV r1, r3
+    		BL printf
+
+    		LDR r0, =format_int	@ r0 = "%d "
+    		MOV r1, r6              @ file handle
+    		MOV r3, r2		@ r3 = encrypted int
+    		BL fprintf
+
+    		B encrypt_loop
+
+	encrypt_done:
+    		MOV r0, r6	@ Flush and close file
+    		BL fflush
+    		BL fclose
+
+    		LDR lr, [sp, #0]
+    		ADD sp, sp, #4
+    		MOV pc, lr
 
 
+.text
+pow:
+    PUSH {lr}
 
+    MOV r3, #1        @ result = 1
+    MOV r4, r0        @ current base = base
+    MOV r5, r1        @ current exponent = exponent
 
+modexp_loop:
+    CMP r5, #0
+    BEQ modexp_done
+
+    @ if (exponent & 1)
+    AND r6, r5, #1
+    CMP r6, #0
+    BEQ skip_multiply
+
+    @ result = (result * base) % mod
+    MUL r3, r3, r4
+    MOV r0, r3
+    MOV r1, r2
+    BL __aeabi_idiv
+    MUL r6, r0, r2
+    SUB r3, r3, r6
+
+skip_multiply:
+    @ base = (base * base) % mod
+    MUL r4, r4, r4
+    MOV r0, r4
+    MOV r1, r2
+    BL __aeabi_idiv
+    MUL r6, r0, r2
+    SUB r4, r4, r6
+
+    @ exponent >>= 1
+    MOV r5, r5, LSR #1
+    B modexp_loop
+
+modexp_done:
+    MOV r0, r3        @ return result in r0
+    POP {lr}
+    BX lr
