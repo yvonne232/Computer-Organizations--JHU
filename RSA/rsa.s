@@ -1,6 +1,95 @@
 .text
 .global main
+
+.extern printf
+.extern scanf
+.extern fopen
+.extern fclose
+.extern fprintf
+.extern fscanf
+.extern fflush
+
 main:
+	
+	SUB sp, sp, #28
+	STR lr, [sp, #0]
+	STR r4, [sp, #4]
+	STR r5, [sp, #8]
+	STR r6, [sp, #12]
+	STR r7, [sp, #16]
+	STR r8, [sp, #20]
+	STR r9, [sp, #24]
+	
+	# Main Menu
+	LDR r0, =menu_text
+    	BL printf
+
+    	LDR r0, =scan_format
+    	LDR r1, =menu_choice
+    	BL scanf
+
+    	LDR r0, =menu_choice
+    	LDR r0, [r0]
+
+    	CMP r0, #1
+    	BEQ generate_keys  
+	
+	CMP r0, #2
+	BEQ encrypt_message
+	
+	B Done
+	
+					
+	Done:
+		LDR lr, [sp, #0]
+		LDR r4, [sp, #4]
+		LDR r5, [sp, #8]
+		LDR r6, [sp, #12]
+		LDR r7, [sp, #16]
+		LDR r8, [sp, #20]
+		LDR r9, [sp, #24]
+		ADD sp, sp, #28
+		MOV pc, lr
+
+.data
+prompt_p: .asciz "Enter prime number p (p < 50): "
+prompt_q: .asciz "Enter prime number q (q < 50): "
+prompt_e: .asciz "Enter public exponent e (1 < e < phi(n), and gcd(e, phi(n)) = 1): "
+scan_format: .asciz "%d"
+scan_string_format: .asciz "%s"
+p: .word 0
+q: .word 0
+e: .word 0
+d: .word 0
+not_prime: .asciz "\The number is not a prime. Please enter again.\n"
+is_prime:    .asciz "\The number is a prime.\n"
+msg_pubkey: .asciz "Public Key (n, e) = (%d, %d)\n"
+msg_n: .asciz "Modulus n = %d\n"
+msg_phi: .asciz "Totient phi(n) = %d\n"
+msg_e: .asciz "Public exponent e = %d\n"
+invalid_e_msg: .asciz "Invalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
+msg_d: .asciz "Private exponent d = %d\n"
+
+debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
+trying_x: .asciz "Trying x = %d\n"
+
+menu_text: .asciz "Select an option:\n1 - Generate Public and Private Keys\n2 - Encrypt a Message\n3 - Decrypt a Message\n4 - Exit\n"
+menu_choice: .word 0
+
+msg_input_plaintext: .asciz "Enter a plaintext message (no spaces): "
+plaintext: .space 256
+file_encrypted: .asciz "encrypted.txt"
+file_plaintext: .asciz "plaintext.txt"
+mode_write: .asciz "w"
+mode_read: .asciz "r"
+
+
+# End Main
+
+/* ------------------------------------ */
+/* Generate Keys Main Function */
+.text
+generate_keys:
 	# Program Dictionary
 	# r4 - store p in r4
 	# r5 - store q in r5
@@ -49,10 +138,10 @@ main:
 	BL cprivexp
 	MOV r9, r0	// Store d in r9
 
-	B Done
+	B generateKeys_Done
 	
 					
-	Done:
+	generateKeys_Done:
 		LDR lr, [sp, #0]
 		LDR r4, [sp, #4]
 		LDR r5, [sp, #8]
@@ -63,29 +152,9 @@ main:
 		ADD sp, sp, #28
 		MOV pc, lr
 
-.data
-prompt_p: .asciz "Enter prime number p (p < 50): "
-prompt_q: .asciz "Enter prime number q (q < 50): "
-prompt_e: .asciz "Enter public exponent e (1 < e < phi(n), and gcd(e, phi(n)) = 1): "
-scan_format: .asciz "%d"
-p: .word 0
-q: .word 0
-e: .word 0
-d: .word 0
-not_prime: .asciz "\The number is not a prime. Please enter again.\n"
-is_prime:    .asciz "\The number is a prime.\n"
-msg_pubkey: .asciz "Public Key (n, e) = (%d, %d)\n"
-msg_n: .asciz "Modulus n = %d\n"
-msg_phi: .asciz "Totient phi(n) = %d\n"
-msg_e: .asciz "Public exponent e = %d\n"
-invalid_e_msg: .asciz "Invalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.\n"
-msg_d: .asciz "Private exponent d = %d\n"
 
-debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
-trying_x: .asciz "Trying x = %d\n"
-
-# End Main
-
+/* ------------------------------------ */
+/* Generate Keys Helper Functions */
 .text
 isPrime:
 	# Function purpose: check if r0 is prime number
@@ -490,3 +559,47 @@ computePhi:
 	MOV pc, lr
 
 # End computePhi
+
+
+
+/* ------------------------------------ */
+/* Encrypt Message */
+.text
+encrypt_message:
+	# Function purpose: main encrypt message function
+	# Input: 
+	# r4 - store p in r4
+	# r5 - store q in r5
+	# r6 - store modulus n = p * q in r6
+	# r7 - store phi(n) = (p-1) * (q-1) in r7
+	# r8 - store e in r8
+	# r9 - store d in r9
+	# Output: 
+	# 
+
+	# Program Dictionary:
+	# Continue from r9, store 
+	
+	SUB sp, sp, #4
+	STR lr, [sp, #0]
+
+	LDR r0, =msg_input_plaintext
+    	BL printf
+    	LDR r0, =scan_string_format
+    	LDR r1, =plaintext
+    	BL scanf
+
+	LDR r0, =file_encrypted
+    	LDR r1, =mode_write
+    	BL fopen
+    	MOV r10, r0                   // r10: file handle for output
+
+	LDR r1, =plaintext
+
+	LDR lr, [sp, #0]
+	ADD sp, sp, #4
+	MOV pc, lr
+
+
+
+
