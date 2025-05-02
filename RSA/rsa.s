@@ -592,16 +592,7 @@ computePhi:
 .text
 encrypt_message:
 	# Function purpose: main encrypt message function
-	# Input: 
-	# r4 - store p in r4
-	# r5 - store q in r5
-	# r6 - store modulus n = p * q in r6
-	# r7 - store phi(n) = (p-1) * (q-1) in r7
-	# r8 - store e in r8
-	# r9 - store d in r9
-	# Output: 
-	# 
-
+	
 	# Program Dictionary:
 	# r4 - store n in r4
 	# r5 - store e in r5 
@@ -618,11 +609,11 @@ encrypt_message:
     	LDR r5, [r0]
 
     	LDR r0, =msg_n	@ Debug: print n and e
-    	MOV r1, r4
+    	MOV r1, r4	@ r4 = n
     	BL printf
 
-    	LDR r0, =msg_e
-    	MOV r1, r4
+    	LDR r0, =msg_e	@ r5 = e
+    	MOV r1, r5
     	BL printf
 
 	LDR r0, =msg_input_plaintext
@@ -635,7 +626,7 @@ encrypt_message:
 	LDR r0, =file_encrypted
     	LDR r1, =mode_write
     	BL fopen
-    	MOV r6, r0           @ r10 = file handle
+    	MOV r6, r0           @ r6 = file handle
 
     	@ Load plaintext address into r1
     	LDR r1, =plaintext
@@ -644,34 +635,34 @@ encrypt_message:
     		LDRB r2, [r1], #1     @ Load next byte, increment pointer
     		CMP r2, #0
     		BEQ encrypt_done      @ End of string
+		
+    		MOV r7, r2              @ Preserve original ASCII value
 
-		@ Debug print: current character
+    		@ Debug print: char and ASCII
     		LDR r0, =msg_char
-    		MOV r1, r2
+    		MOV r1, r7
     		BL printf
 
-		@ Debug print: ASCII value
     		LDR r0, =msg_ascii
-    		MOV r1, r2
+    		MOV r1, r7
     		BL printf
 
     		@ Convert r2 to integer m and encrypt: c = m^e mod n
-    		MOV r0, r2            @ m in r0
-    		MOV r1, r4            @ e
-    		MOV r2, r5            @ n
+    		MOV r0, r7            @ m in r0
+    		MOV r1, r5            @ e
+    		MOV r2, r4            @ n
     		BL pow                @ result c in r0
-
-    		@ Write c to file
-    		MOV r2, r0              @ c to r2
-
-		@ Debug print: Encrypted result
+		MOV r8, r0              @ encrypted = r0 → r8
+		
+		@ Debug print: Encrypted
     		LDR r0, =msg_enc
-    		MOV r1, r3
+    		MOV r1, r8
     		BL printf
 
-    		LDR r0, =format_int	@ r0 = "%d "
+		@ Write to file: fprintf(r6, "%d ", r8)
+    		LDR r0, =format_int
     		MOV r1, r6              @ file handle
-    		MOV r3, r2		@ r3 = encrypted int
+    		MOV r3, r8              @ encrypted int
     		BL fprintf
 
     		B encrypt_loop
