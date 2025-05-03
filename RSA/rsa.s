@@ -6,8 +6,6 @@
 .extern fopen
 .extern fclose
 .extern fprintf
-.extern fscanf
-.extern fflush
 
 main:
 	
@@ -89,22 +87,13 @@ trying_x: .asciz "Trying x = %d\n"
 menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 - Encrypt a Message\n3 - Decrypt a Message\n4 - Exit\n\n"
 menu_choice: .word 0
 
-msg_input_plaintext: .asciz "Enter a plaintext message: "
-plaintext: .space 256
-format_int: .asciz "%d "
-file_encrypted: .asciz "encrypted.txt"
-file_plaintext: .asciz "plaintext.txt"
-write_mode: .asciz "w"
-scan_line_format: .asciz " %[^\n]"
-msg_file_open_error: .asciz "Error: Could not open file.\n"
-msg_debug_input: .asciz "Input read successfully.\n"
-
-mode_read: .asciz "r"
-msg_char:   .asciz "Char: %c\n"
-msg_ascii:  .asciz "ASCII: %d\n"
-msg_enc:    .asciz "Encrypted: %d\n"
-file_write_format: .asciz "%s\n"
-read_mode: .asciz "r"
+input_filename:  .asciz "plaintxt.txt"
+output_filename: .asciz "encrypted.txt"
+read_mode:       .asciz "r"
+write_mode:      .asciz "w"
+char_format:     .asciz "%c"
+input_error_msg: .asciz "Error opening input file.\n"
+output_error_msg:.asciz "Error opening output file.\n"
 
 # End Main
 
@@ -345,7 +334,8 @@ cprivexp:
 	
 	d_found:
 		// Recompute numerator = 1 + x * phi, in case the registers get weird
-    		MUL r6, r9, r5
+		MOV r2, r9      @ Copy r9 to temporary
+    		MUL r6, r2, r5
    		ADD r6, r6, #1
 
     		MOV r0, r6      // numerator = 1+x*phi
@@ -549,7 +539,8 @@ modulo:
 	STR lr, [sp, #0]
 	STR r4, [sp, #4]
 	
-	MUL r0, r0, r1	// n = p * q, n is the public key
+	MOV r2, r0      // Copy r0 to temporary
+	MUL r0, r2, r1	// n = p * q, n is the public key
 	MOV r4, r0	// save n in r4
 
 	LDR r0, =msg_n
@@ -575,7 +566,8 @@ computePhi:
 
 	SUB r0, r0, #1	// p = p-1
 	SUB r1, r1, #1  // q = q-1
-	MUL r4, r0, r1	// fi(n) =  (p - 1)(q - 1); store fi(n) in r4
+	MOV r2, r0      @ Copy r0 to temporary
+	MUL r4, r2, r1	// fi(n) =  (p - 1)(q - 1); store fi(n) in r4
 	
 	LDR r0, =msg_phi
     	MOV r1, r4
@@ -613,98 +605,86 @@ encrypt_message:
     	LDR r5, [r0]
 
     	LDR r0, =msg_n	@ Debug: print n and e
-    	MOV r1, r4	@ r4 = n
+    	MOV r1, r4	@ r6 = n
     	BL printf
 
     	LDR r0, =msg_e	@ r5 = e
     	MOV r1, r5
     	BL printf
 
-    	@ Prompt: "Enter message to encrypt: "
-    	LDR r0, =msg_input_plaintext
-    	BL printf
+    	@ Open input file (plaintxt.txt)
+    	LDR r0, =input_filename    @ "plaintxt.txt"
+    	LDR r1, =read_mode         @ "r"
+   	BL fopen
+    	MOV r4, r0                 @ Save file pointer in r4
+    
+    	CMP r4, #0                 @ Check if file opened successfully
+    	BEQ open_input_error
 
-    	@ Read user input into plaintext buffer
-    	LDR r0, =scan_line_format
-    	LDR r1, =plaintext
-    	BL scanf
+	@ Open output file (encrypted.txt)
+    	LDR r0, =output_filename   @ "encrypted.txt"
+    	LDR r1, =write_mode        @ "w"
+    	BL fopen
+    	MOV r5, r0                 @ Save file pointer in r5
+    
+    	CMP r5, #0                 @ Check if file opened successfully
+    	BEQ open_output_error
+    
+    	@ Read and encrypt each character
+    	read_loop:
+        	@ Read one character
+        	LDR r0, =char_format    @ "%c"
+        	MOV r1, sp              @ Use stack as buffer (we'll overwrite it)
+        	MOV r2, r4              @ File pointer
+        	BL fscanf
+        
+        	CMP r0, #1              @ Check if read was successful
+        	BNE end_read
+        
+        	@ Encrypt the character (simple XOR with 0xAA as example)
+        	LDRB r6, [sp]           @ Load the character
+        	EOR r6, r6, #0xAA       @ Simple XOR encryption
+        	STRB r6, [sp]           @ Store back
+        
+        	@ Write encrypted character
+        	LDR r0, =char_format
+        	MOV r1, sp              @ Pointer to our character
+        	MOV r2, r5              @ Output file pointer
+        	BL fprintf
+        
+        	B read_loop
+    
+    	end_read:
+    		@ Close files
+    		MOV r0, r4
+    		BL fclose
+    
+    		MOV r0, r5
+    		BL fclose
+    
+    		B encrypt_done
+    
+    	open_input_error:
+        	LDR r0, =input_error_msg
+       		BL printf
+        	B encrypt_done
+    
+    open_output_error:
+        @ Close input file if it was opened
+        CMP r4, #0
+        BEQ no_input_to_close
+        MOV r0, r4
+        BL fclose
+        
+    no_input_to_close:
+        LDR r0, =output_error_msg
+        BL printf
+    
+    encrypt_done:
+        LDR lr, [sp, #0]
+        ADD sp, sp, #4
+        MOV pc, lr
 
-	LDR r0, =msg_debug_input
-	BL printf
-
-    	@ Open output file in write mode
-	.extern fopen
-    	LDR r0, =file_encrypted        @ const char* filename
-    	LDR r1, =write_mode             @ const char* mode = "w"
-    	BL fopen                        @ FILE* = fopen(filename, "w")
-    	MOV r4, r0                      @ Save FILE* pointer to r4
-
-	CMP r4, #0
-	BEQ fopen_error
-
-    	@ Write plaintext to file
-    	LDR r0, =file_write_format     @ fprintf format: "%s\n"
-    	MOV r1, r4                      @ FILE* stream
-    	LDR r2, =plaintext              @ user message
-    	BL fprintf
-
-    	@ Close file
-    	MOV r0, r4
-    	BL fclose
-	B exit_function
 	
-	exit_function:
-		LDR lr, [sp, #0]
-		ADD sp, sp, #4
-		MOV pc, lr
-
-	fopen_error:
-    		LDR r0, =msg_file_open_error
-    		BL printf
-    		B exit_function
-
-	
 
 
-.text
-pow:
-    PUSH {lr}
-
-    MOV r3, #1        @ result = 1
-    MOV r4, r0        @ current base = base
-    MOV r5, r1        @ current exponent = exponent
-
-modexp_loop:
-    CMP r5, #0
-    BEQ modexp_done
-
-    @ if (exponent & 1)
-    AND r6, r5, #1
-    CMP r6, #0
-    BEQ skip_multiply
-
-    @ result = (result * base) % mod
-    MUL r3, r3, r4
-    MOV r0, r3
-    MOV r1, r2
-    BL __aeabi_idiv
-    MUL r6, r0, r2
-    SUB r3, r3, r6
-
-skip_multiply:
-    @ base = (base * base) % mod
-    MUL r4, r4, r4
-    MOV r0, r4
-    MOV r1, r2
-    BL __aeabi_idiv
-    MUL r6, r0, r2
-    SUB r4, r4, r6
-
-    @ exponent >>= 1
-    MOV r5, r5, LSR #1
-    B modexp_loop
-
-modexp_done:
-    MOV r0, r3        @ return result in r0
-    POP {lr}
-    BX lr
