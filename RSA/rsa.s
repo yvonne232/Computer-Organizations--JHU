@@ -89,12 +89,15 @@ trying_x: .asciz "Trying x = %d\n"
 menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 - Encrypt a Message\n3 - Decrypt a Message\n4 - Exit\n\n"
 menu_choice: .word 0
 
-msg_input_plaintext: .asciz "Enter a plaintext message (no spaces): "
+msg_input_plaintext: .asciz "Enter a plaintext message: "
 plaintext: .space 256
 format_int: .asciz "%d "
 file_encrypted: .asciz "encrypted.txt"
 file_plaintext: .asciz "plaintext.txt"
 write_mode: .asciz "w"
+scan_line_format: .asciz " %[^\n]"
+msg_file_open_error: .asciz "Error: Could not open file.\n"
+msg_debug_input: .asciz "Input read successfully.\n"
 
 mode_read: .asciz "r"
 msg_char:   .asciz "Char: %c\n"
@@ -622,15 +625,21 @@ encrypt_message:
     	BL printf
 
     	@ Read user input into plaintext buffer
-    	LDR r0, =scan_string_format
+    	LDR r0, =scan_line_format
     	LDR r1, =plaintext
     	BL scanf
+
+	LDR r0, =msg_debug_input
+	BL printf
 
     	@ Open output file in write mode
     	LDR r0, =file_encrypted        @ const char* filename
     	LDR r1, =write_mode             @ const char* mode = "w"
     	BL fopen                        @ FILE* = fopen(filename, "w")
     	MOV r4, r0                      @ Save FILE* pointer to r4
+
+	CMP r4, #0
+	BEQ fopen_error
 
     	@ Write plaintext to file
     	LDR r0, =file_write_format     @ fprintf format: "%s\n"
@@ -641,10 +650,19 @@ encrypt_message:
     	@ Close file
     	MOV r0, r4
     	BL fclose
+	B exit_function
+	
+	exit_function:
+		LDR lr, [sp, #0]
+		ADD sp, sp, #4
+		MOV pc, lr
 
-	LDR lr, [sp, #0]
-	ADD sp, sp, #4
-	MOV pc, lr
+	fopen_error:
+    		LDR r0, =msg_file_open_error
+    		BL printf
+    		B exit_function
+
+	
 
 
 .text
