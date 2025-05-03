@@ -590,90 +590,91 @@ encrypt_message:
 	# Function purpose: main encrypt message function
 	
 	# Program Dictionary:
-	# r4 - File* pointer
-	# r5 - 
-	# r6 - 
-
-	SUB sp, sp, #4
-	STR lr, [sp, #0]
-	
-	# Load n and e back from memory
-	LDR r0, =n_val
-    	LDR r4, [r0]
-
-    	LDR r0, =e_val
-    	LDR r5, [r0]
-
-    	LDR r0, =msg_n	@ Debug: print n and e
-    	MOV r1, r4	@ r6 = n
-    	BL printf
-
-    	LDR r0, =msg_e	@ r5 = e
-    	MOV r1, r5
-    	BL printf
-
-    	@ Open input file (plaintxt.txt)
-    	LDR r0, =input_filename    @ "plaintxt.txt"
-    	LDR r1, =read_mode         @ "r"
-   	BL fopen
-    	MOV r4, r0                 @ Save file pointer in r4
+	SUB sp, sp, #8
+    STR lr, [sp, #0]
+    STR r4, [sp, #4]   @ Save additional register we'll use
     
-    	CMP r4, #0                 @ Check if file opened successfully
-    	BEQ open_input_error
+    # Load n and e back from memory
+    LDR r0, =n_val
+    LDR r4, [r0]       @ r4 = n
 
-	@ Open output file (encrypted.txt)
-    	LDR r0, =output_filename   @ "encrypted.txt"
-    	LDR r1, =write_mode        @ "w"
-    	BL fopen
-    	MOV r5, r0                 @ Save file pointer in r5
+    LDR r0, =e_val
+    LDR r5, [r0]       @ r5 = e
+
+    @ Debug: print n and e
+    LDR r0, =msg_n
+    MOV r1, r4
+    BL printf
+
+    LDR r0, =msg_e
+    MOV r1, r5
+    BL printf
+
+    @ Open input file (plaintxt.txt)
+    LDR r0, =input_filename    @ "plaintxt.txt"
+    LDR r1, =read_mode         @ "r"
+    BL fopen
+    MOV r7, r0                 @ Save input file pointer in r7
     
-    	CMP r5, #0                 @ Check if file opened successfully
-    	BEQ open_output_error
+    CMP r7, #0                 @ Check if file opened successfully
+    BEQ open_input_error
+
+    @ Open output file (encrypted.txt)
+    LDR r0, =output_filename   @ "encrypted.txt"
+    LDR r1, =write_mode        @ "w"
+    BL fopen
+    MOV r8, r0                 @ Save output file pointer in r8
     
-    	@ Read and encrypt each character
-    	read_loop:
-        	@ Read one character
-        	LDR r0, =char_format    @ "%c"
-        	MOV r1, sp              @ Use stack as buffer (we'll overwrite it)
-        	MOV r2, r4              @ File pointer
-        	BL fscanf
+    CMP r8, #0                 @ Check if file opened successfully
+    BEQ open_output_error
+    
+    @ Read and encrypt each character
+    read_loop:
+        @ Read one character
+        LDR r0, =char_format    @ "%c"
+        MOV r1, sp              @ Use stack as buffer
+        MOV r2, r7              @ Input file pointer
+        BL fscanf
         
-        	CMP r0, #1              @ Check if read was successful
-        	BNE end_read
+        CMP r0, #1              @ Check if read was successful
+        BNE end_read
         
-        	@ Encrypt the character (simple XOR with 0xAA as example)
-        	LDRB r6, [sp]           @ Load the character
-        	EOR r6, r6, #0xAA       @ Simple XOR encryption
-        	STRB r6, [sp]           @ Store back
+        @ Encrypt the character (using RSA encryption: c = m^e mod n)
+        LDRB r6, [sp]           @ Load the character (plaintext m)
         
-        	@ Write encrypted character
-        	LDR r0, =char_format
-        	MOV r1, sp              @ Pointer to our character
-        	MOV r2, r5              @ Output file pointer
-        	BL fprintf
+        @ Here you would implement: c = m^e mod n
+        @ For now using simple XOR as placeholder
+        EOR r6, r6, #0xAA       @ Simple XOR encryption (replace with RSA)
+        STRB r6, [sp]           @ Store back
         
-        	B read_loop
+        @ Write encrypted character
+        LDR r0, =char_format
+        MOV r1, sp
+        MOV r2, r8              @ Output file pointer
+        BL fprintf
+        
+        B read_loop
     
-    	end_read:
-    		@ Close files
-    		MOV r0, r4
-    		BL fclose
+    end_read:
+        @ Close files
+        MOV r0, r7
+        BL fclose
     
-    		MOV r0, r5
-    		BL fclose
+        MOV r0, r8
+        BL fclose
     
-    		B encrypt_done
+        B encrypt_done
     
-    	open_input_error:
-        	LDR r0, =input_error_msg
-       		BL printf
-        	B encrypt_done
+    open_input_error:
+        LDR r0, =input_error_msg
+        BL printf
+        B encrypt_done
     
     open_output_error:
         @ Close input file if it was opened
-        CMP r4, #0
+        CMP r7, #0
         BEQ no_input_to_close
-        MOV r0, r4
+        MOV r0, r7
         BL fclose
         
     no_input_to_close:
@@ -682,9 +683,6 @@ encrypt_message:
     
     encrypt_done:
         LDR lr, [sp, #0]
-        ADD sp, sp, #4
+        LDR r4, [sp, #4]
+        ADD sp, sp, #8
         MOV pc, lr
-
-	
-
-
