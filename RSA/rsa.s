@@ -103,8 +103,8 @@ mode_read: .asciz "r"
 msg_char:   .asciz "Char: %c\n"
 msg_ascii:  .asciz "ASCII: %d\n"
 msg_enc:    .asciz "Encrypted: %d\n"
-file_write_format: .asciz "r"
-
+file_write_format: .asciz "%s\n"
+read_mode: .asciz "r"
 
 # End Main
 
@@ -633,6 +633,7 @@ encrypt_message:
 	BL printf
 
     	@ Open output file in write mode
+	.extern fopen
     	LDR r0, =file_encrypted        @ const char* filename
     	LDR r1, =write_mode             @ const char* mode = "w"
     	BL fopen                        @ FILE* = fopen(filename, "w")
