@@ -94,12 +94,13 @@ plaintext: .space 256
 format_int: .asciz "%d "
 file_encrypted: .asciz "encrypted.txt"
 file_plaintext: .asciz "plaintext.txt"
-mode_write: .asciz "w"
+write_mode: .asciz "w"
+
 mode_read: .asciz "r"
 msg_char:   .asciz "Char: %c\n"
 msg_ascii:  .asciz "ASCII: %d\n"
 msg_enc:    .asciz "Encrypted: %d\n"
-
+file_write_format: .asciz "r"
 
 
 # End Main
@@ -594,10 +595,10 @@ encrypt_message:
 	# Function purpose: main encrypt message function
 	
 	# Program Dictionary:
-	# r4 - store n in r4
-	# r5 - store e in r5 
-	# r6 - store file handle in r6
-	
+	# r4 - File* pointer
+	# r5 - 
+	# r6 - 
+
 	SUB sp, sp, #4
 	STR lr, [sp, #0]
 	
@@ -616,65 +617,34 @@ encrypt_message:
     	MOV r1, r5
     	BL printf
 
-	LDR r0, =msg_input_plaintext
+    	@ Prompt: "Enter message to encrypt: "
+    	LDR r0, =msg_input_plaintext
     	BL printf
+
+    	@ Read user input into plaintext buffer
     	LDR r0, =scan_string_format
     	LDR r1, =plaintext
     	BL scanf
 
+    	@ Open output file in write mode
+    	LDR r0, =file_encrypted        @ const char* filename
+    	LDR r1, =write_mode             @ const char* mode = "w"
+    	BL fopen                        @ FILE* = fopen(filename, "w")
+    	MOV r4, r0                      @ Save FILE* pointer to r4
 
-	LDR r0, =file_encrypted
-    	LDR r1, =mode_write
-    	BL fopen
-    	MOV r6, r0           @ r6 = file handle
+    	@ Write plaintext to file
+    	LDR r0, =file_write_format     @ fprintf format: "%s\n"
+    	MOV r1, r4                      @ FILE* stream
+    	LDR r2, =plaintext              @ user message
+    	BL fprintf
 
-    	@ Load plaintext address into r1
-    	LDR r1, =plaintext
+    	@ Close file
+    	MOV r0, r4
+    	BL fclose
 
-	encrypt_loop:
-    		LDRB r2, [r1], #1     @ Load next byte, increment pointer
-    		CMP r2, #0
-    		BEQ encrypt_done      @ End of string
-		
-    		MOV r7, r2              @ Preserve original ASCII value
-
-    		@ Debug print: char and ASCII
-    		LDR r0, =msg_char
-    		MOV r1, r7
-    		BL printf
-
-    		LDR r0, =msg_ascii
-    		MOV r1, r7
-    		BL printf
-
-    		@ Convert r2 to integer m and encrypt: c = m^e mod n
-    		MOV r0, r7            @ m in r0
-    		MOV r1, r5            @ e
-    		MOV r2, r4            @ n
-    		BL pow                @ result c in r0
-		MOV r8, r0              @ encrypted = r0 → r8
-		
-		@ Debug print: Encrypted
-    		LDR r0, =msg_enc
-    		MOV r1, r8
-    		BL printf
-
-		@ Write to file: fprintf(r6, "%d ", r8)
-    		LDR r0, =format_int
-    		MOV r1, r6              @ file handle
-    		MOV r3, r8              @ encrypted int
-    		BL fprintf
-
-    		B encrypt_loop
-
-	encrypt_done:
-    		MOV r0, r6	@ Flush and close file
-    		BL fflush
-    		BL fclose
-
-    		LDR lr, [sp, #0]
-    		ADD sp, sp, #4
-    		MOV pc, lr
+	LDR lr, [sp, #0]
+	ADD sp, sp, #4
+	MOV pc, lr
 
 
 .text
