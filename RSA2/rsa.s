@@ -88,12 +88,15 @@ menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 
 menu_choice: .word 0
 
 sample_input: .asciz "Hello from Team 1"
+debug_pow_msg: .asciz "Debug: %d^%d = %d (before mod)\n"
+
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
 encrypted_char:   .asciz "  Encrypted to: %d\n\n"
 test_msg:      .asciz "\nTesting modexp: 5^3 mod 13...\n"
 test_result:   .asciz "modexp(%d,%d,%d) = %d (expected 8)\n"
-
+success_msg:  .asciz "Test PASSED (got expected result 8)\n"
+fail_msg:     .asciz "Test FAILED (expected 8)\n"
 
 input_filename:  .asciz "plaintxt.txt"
 output_filename: .asciz "encrypted.txt"
@@ -612,19 +615,7 @@ encrypt_message:
     	LDR r0, =test_msg
     	BL printf
     
-    	MOV r0, #5             @ base = 5
-    	MOV r1, #3             @ exponent = 3
-    	MOV r2, #13            @ modulus = 13
-    	BL modexp              @ r0 = 5^3 mod 13
-    
-    	@ Print test result
-    	MOV r3, r0             @ Save result
-    	LDR r0, =test_result
-    	MOV r1, #5             @ base
-    	MOV r2, #3             @ exponent
-                         @ r3 already has result
-    	BL printf
-
+    	
     	# Load n and e back from memory
     	LDR r0, =n_val
     	LDR r4, [r0] 		@ r4 = n
@@ -700,33 +691,35 @@ pow:
 	
 	SUB sp, sp, #4
 	STR lr, [sp, #0] 
-	PUSH {r4-r5}
+	STR r4, [sp, #4]
+    	STR r5, [sp, #8]
 	
 	@ Handle special cases
     	CMP r1, #0             @ If exponent == 0
     	MOVEQ r0, #1           @ Return 1 (anything^0 = 1)
-    	BEQ exp_done
+    	BEQ pow_done
 
-	MOV r4, r0             @ r4 = current base = m
+	MOV r4, r0             @ r4 = current result = m
     	MOV r5, r1             @ r5 = exponent = e
-    	SUB r5, r5, #1         @ We already have m^1
+    	SUB r5, r5, #1         @ We already have m^1 (in r4)
 
-	exp_loop:
-    		@ Multiply m by itself e-1 times
-    		CMP r5, #0             @ Check if counter reached 0
-    		BEQ exp_done
+    	pow_loop:
+        	@ Multiply result by base e-1 times
+        	CMP r5, #0         @ Check if counter reached 0
+        	BEQ pow_done
     
-    		MUL r4, r4, r0         @ running_product *= m
-    		SUB r5, r5, #1         @ decrement counter
+        	MUL r4, r4, r0     @ result *= base
+        	SUBS r5, r5, #1    @ decrement counter (set flags)
     
-    		B exp_loop
+        	BNE pow_loop       @ continue if counter > 0
 
-	exp_done:
-    		MOV r0, r4             @ Return final result
-		POP {r4-r5}
-		LDR lr, [sp, #0]
-		ADD sp, sp, #4
-		MOV pc, lr
+	pow_done:
+        	MOV r0, r4         @ Return final result
+        	LDR lr, [sp, #0]
+        	LDR r4, [sp, #4]
+        	LDR r5, [sp, #8]
+        	ADD sp, sp, #12
+        	MOV pc, lr
 
 # End pow
 
@@ -740,24 +733,41 @@ modexp:
 	STR lr, [sp, #0]
 
 	PUSH {r4-r8}
-    	
-	MOV r4, r0        @ Save base
-    	MOV r5, r1        @ Save exponent
-    	MOV r6, r2        @ Save modulus	
+    		
 	
-	@ Compute m^e using pow function
-    	MOV r0, r4
-    	MOV r1, r5
-    	BL pow             @ r0 = m^e
+	MOV r4, r0             @ r4 = base
+    	MOV r5, r1             @ r5 = exponent
+    	MOV r6, r2             @ r6 = modulus
 
-	@ Then compute mod n
-    	MOV r1, r6             @ Load modulus
-    	BL mod_reduce          @ r0 = (m^e) mod n
-	
-	POP {r4-r8}
-	LDR lr, [sp, #0]
-	ADD sp, sp, #4
-	MOV pc, lr
+	@ Debug print: show m^e
+    PUSH {r0-r3}       @ Save registers
+    MOV r3, r0         @ Save result
+    LDR r0, =debug_pow_msg
+    MOV r1, r4         @ m
+    MOV r2, r5         @ e
+    BL printf
+    MOV r0, r3         @ Restore result
+    POP {r0-r3}        @ Restore registers
+    
+    	@ Handle modulus 1 case
+    CMP r6, #1
+    MOVEQ r0, #0
+    BEQ modexp_done
+    
+    @ Compute base^exponent using pow
+    MOV r0, r4
+    MOV r1, r5
+    BL pow
+    
+    @ Now compute mod
+    MOV r1, r6
+    BL mod_reduce
+
+	modexp_done:	
+		POP {r4-r8}
+		LDR lr, [sp, #0]
+		ADD sp, sp, #4
+		MOV pc, lr
  
 
 mod_reduce:
@@ -765,7 +775,42 @@ mod_reduce:
     	PUSH {lr}
     	BL __aeabi_idivmod     @ r1 = r0 % r1
     	MOV r0, r1             @ Return remainder
-    	POP {pc}	
+    	POP {pc}
+	
 
-
-
+/* ------------------------------------ */
+/* Test Case */
+.text
+test_modexp:
+    PUSH {lr}
+    
+    @ Test 5^3 mod 13
+    LDR r0, =test_msg
+    BL printf
+    
+    MOV r0, #5
+    MOV r1, #3
+    MOV r2, #13
+    BL modexp
+    
+    @ Print and verify result
+    MOV r3, r0
+    LDR r0, =test_result
+    MOV r1, #5
+    MOV r2, #3
+    MOV r3, #13
+    PUSH {r0-r3}
+    BL printf
+    POP {r0-r3}
+    
+    CMP r0, #8
+    BNE test_fail
+    
+    LDR r0, =success_msg
+    BL printf
+    B test_done
+test_fail:
+    LDR r0, =fail_msg
+    BL printf
+test_done:
+    POP {pc}
