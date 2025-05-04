@@ -54,6 +54,7 @@ main:
     		B menu_loop
 	
 	do_decrypt_message:
+		BL run_tests
 		BL decrypt_message
 		B menu_loop
 				
@@ -103,7 +104,7 @@ sample_input: .asciz "Hello from Team 1"
 debug_pow_msg: .asciz "Debug: %d^%d = %d (before mod)\n"
 debug_pow_result_msg: .asciz "Debug: pow result = %d\n"
 debug_char: .asciz "Processing char: %c (ASCII %d)\n"
-encrypted_char: .asciz "  Encrypted to: %d\n\n"
+encrypted_char: .asciz "  Encrypted to: %d\n"
 decrypted_char: .asciz "  Decrypted to: %c (ASCII %d)\n\n"
 debug_num: .asciz "Decrypting number: %d\n"
 debug_num_msg: .asciz "Encrypted number: %d\n"
@@ -643,7 +644,7 @@ encrypt_message:
     	STR r4, [sp, #4]   @ base
     	STR r5, [sp, #8]   @ exponent
     	STR r6, [sp, #12]  @ modulus
-    	STR r7, [sp, #16]  @ result
+    	STR r7, [sp, #16]  
 	STR r8, [sp, #20]
     	
 
@@ -787,24 +788,24 @@ modexp:
     Mov r7, r0
     
     /* Debug: print pow result */
-    LDR r0, =modexp_debug_pow
-    MOV r1, r7
-    BL printf
+    // LDR r0, =modexp_debug_pow
+    // MOV r1, r7
+    // BL printf
     
     /* Step 2: Compute mod reduction */
     MOV r0, r7            @ Load pow result
     MOV r1, r6            @ modulus
-    BL calModulo         @ r0 = (m^e) mod n
+    BL calModulo        @ r0 = (m^e) mod n
     MOV r7, r0            @ Save mod result in r7
 
     LDR r0, =mod_val
     STR r7, [r0]   
 
     @ Print modulus and mod result
-    LDR r0, =debug_mod_msg
-    MOV r1, r6            @ modulus value
-    MOV r2, r7            @ mod result
-    BL printf
+    // LDR r0, =debug_mod_msg
+    // MOV r1, r6            @ modulus value
+    // MOV r2, r7            @ mod result
+    // BL printf
 
 	
 
@@ -818,18 +819,25 @@ modexp_done:
 .text
 mod_reduce:
 	# Function: Modular Reduction: r0 = r0 mod r1
-    	PUSH {r4-r5, lr}
-    	BL __aeabi_idivmod     @ After this: r1 = remainder
+    	PUSH {r2-r3, lr}
+ 
+    	BL __aeabi_idivmod  @ r1 = remainder
 
-    	MOV r4, r1             @ Move remainder into r4
-    	CMP r4, #0
-    	BGE skip_correction    @ If remainder >= 0, skip
+	@ Only fix negative results (skip zero/positive)
+    	MOV r0, r1          @ Start with remainder
+    	CMP r0, #0
+    	BGT mod_done        @ If positive, done
+    
 
-    	ADD r4, r4, r1         @ remainder += modulus (r1 is still modulus here)
+    
+mod_fix_negative:
+    ADD r0, r0, r1      @ Add modulus to negative value
+    CMP r0, #0
+    BLT mod_fix_negative @ Repeat until positive
 
-skip_correction:
-    	MOV r0, r4             @ Final corrected result into r0
-    	POP {r4-r5, pc}
+	mod_done:
+    	POP {r2-r3, pc}
+
 
 .text
 calModulo:
@@ -970,13 +978,12 @@ decrypt_message:
         BEQ decrypt_done
         
         # Here would be the actual decryption:
-        # MOV r0, r5        @ encrypted number
-        # MOV r1, r7        @ private exponent d
-        # MOV r2, r6        @ modulus n
-        # BL modexp         @ result = encrypted^d mod n
+        MOV r0, r5        @ encrypted number
+        MOV r1, r7        @ private exponent d
+        MOV r2, r6        @ modulus n
+        BL modexp         @ result = encrypted^d mod n
         
-        # For now just print the encrypted number (debug)
-        MOV r1, r5
+        MOV r1, r0
         LDR r0, =debug_num_msg
         BL printf
         
