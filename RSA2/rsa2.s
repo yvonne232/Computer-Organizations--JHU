@@ -118,7 +118,7 @@ modexp_debug_input: .asciz "Testing modexp function: computing %d^%d mod %d\n"
 modexp_debug_pow: .asciz "pow result: %d\n"
 modexp_debug_result: .asciz "final result: %d\n\n"
 test_case_msg: .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
-test_result_msg: .asciz "modexp(%d,%d,%d) = %d\n"
+test_result_msg: .asciz "modexp = %d\n"
 
 
 
@@ -798,7 +798,7 @@ modexp:
     MOV r7, r0            @ Save mod result in r7
 
     LDR r0, =mod_val
-    STR r7, [r1]   
+    STR r7, [r0]   
 
     @ Print modulus and mod result
     LDR r0, =debug_mod_msg
@@ -880,12 +880,11 @@ run_tests:
     BL modexp
     
     # Verify test result
-    LDR r4, =mod_val
-    LDR r4, [r4]       @ Get result from memory
+    LDR r3, =mod_val
+    LDR r3, [r3]       @ Get result from memory
     LDR r0, =test_result_msg
-    MOV r1, #5
-    MOV r2, #3
-    MOV r3, #13
+    MOV r1, r3
+    BL printf
     
     BL printf
 
