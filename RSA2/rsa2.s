@@ -118,7 +118,7 @@ modexp_debug_input: .asciz "Testing modexp function: computing %d^%d mod %d\n"
 modexp_debug_pow: .asciz "pow result: %d\n"
 modexp_debug_result: .asciz "final result: %d\n\n"
 test_case_msg: .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
-test_result_msg: .asciz "modexp = %d\n"
+test_result_msg: .asciz "modexp = %d\n\n"
 
 
 
@@ -794,7 +794,7 @@ modexp:
     /* Step 2: Compute mod reduction */
     MOV r0, r7            @ Load pow result
     MOV r1, r6            @ modulus
-    BL mod_reduce         @ r0 = (m^e) mod n
+    BL calModulo         @ r0 = (m^e) mod n
     MOV r7, r0            @ Save mod result in r7
 
     LDR r0, =mod_val
@@ -818,10 +818,39 @@ modexp_done:
 .text
 mod_reduce:
 	# Function: Modular Reduction: r0 = r0 mod r1
-    	PUSH {lr}
-    	BL __aeabi_idivmod     @ r1 = r0 % r
-	MOV r0, r1             @ Return remainder
-    	POP {pc}
+    	PUSH {r4-r5, lr}
+    	BL __aeabi_idivmod     @ After this: r1 = remainder
+
+    	MOV r4, r1             @ Move remainder into r4
+    	CMP r4, #0
+    	BGE skip_correction    @ If remainder >= 0, skip
+
+    	ADD r4, r4, r1         @ remainder += modulus (r1 is still modulus here)
+
+skip_correction:
+    	MOV r0, r4             @ Final corrected result into r0
+    	POP {r4-r5, pc}
+
+.text
+calModulo:
+    SUB sp, sp, #8
+    STR lr, [sp, #0]
+    STR r1, [sp, #4]
+
+    MOV r5, r0            // Save dividend
+    BL __aeabi_idiv       // Call division (quotient in r0)
+
+    MOV r2, r0            // r2 = quotient
+    MOV r3, r2            
+    MUL r2, r3, r1        // r2 = quotient * divisor
+
+    SUB r0, r5, r2        // r0 = dividend - (quotient * divisor)
+
+    LDR lr, [sp, #0]
+    LDR r1, [sp, #4]
+    ADD sp, sp, #8
+    MOV pc, lr
+
 
 .text
 run_tests:
@@ -884,8 +913,6 @@ run_tests:
     LDR r3, [r3]       @ Get result from memory
     LDR r0, =test_result_msg
     MOV r1, r3
-    BL printf
-    
     BL printf
 
    
