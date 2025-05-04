@@ -102,9 +102,9 @@ pow_test_msg:      .asciz "\nTesting pow function: 5^3...\n"
 pow_test_result:   .asciz "pow(%d, %d) = %d (expected 125)\n\n"
 mod_test_msg:      .asciz "Testing mod function: 17 mod 5...\n"
 mod_test_result:   .asciz "%d mod %d = %d (expected 2)\n\n"
-modexp_debug_input:  .asciz "modexp: computing %d^%d mod %d\n"
-modexp_debug_pow:    .asciz "  pow result: %d\n"
-modexp_debug_result: .asciz "  final result: %d\n\n"
+modexp_debug_input:  .asciz "Testing modexp function: computing %d^%d mod %d\n"
+modexp_debug_pow:    .asciz "pow result: %d\n"
+modexp_debug_result: .asciz "final result: %d\n\n"
 test_case_msg:      .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
 test_result_msg:    .asciz "modexp(%d,%d,%d) = %d\n"
 
@@ -675,7 +675,12 @@ encrypt_message:
     	MOV r4, #2        @ expected
     	BL printf
 
-	# Test case: 5^3 mod 13 = 8 (should pass)
+	# ============================================
+    	# TEST CASE 3: Verify modexp(5,3,13) = 8
+    	# ============================================
+    	LDR r0, =test_case_msg
+    	BL printf
+    
     	MOV r0, #5         @ base
     	MOV r1, #3         @ exponent
     	MOV r2, #13        @ modulus
@@ -687,6 +692,7 @@ encrypt_message:
     	MOV r1, #5
     	MOV r2, #3
     	MOV r3, #13
+    	MOV r4, r4         @ actual result
     	BL printf
 
     	# Load n and e back from memory
@@ -716,40 +722,11 @@ encrypt_message:
     		BEQ process_loop
     
     		@ Print original character
-    		PUSH {r0-r3, lr}
-    		LDR r0, =debug_char
-    		MOV r1, r7
-    		MOV r2, r7
-    		BL printf
-    		POP {r0-r3, lr}
-    
-    		# Step 1: Call pow - result = char^e
-    		MOV r0, r7        @ m (character)
-    		MOV r1, r5        @ e
-    		BL pow            @ r0 = char^e
-    		MOV r8, r0        @ Save pow result
-    
-    		# Debug print pow result
-    		PUSH {r0-r3}
-    		LDR r0, =debug_pow_msg
-    		MOV r1, r7
-    		MOV r2, r5
-    		MOV r3, r8
-    		BL printf
-    		POP {r0-r3}
-
-		# Step 2: Call mod_reduce - result = result mod n
-    MOV r0, r8        @ pow result
-    MOV r1, r4        @ n
-    BL mod_reduce     @ r0 = (char^e) mod n
-    MOV r8, r0        @ Save final result
-    
-    # Print encrypted character
-    PUSH {r0-r3}
-    LDR r0, =encrypted_char
-    MOV r1, r8
+    		# Debug print character
+    LDR r0, =debug_char
+    MOV r1, r7
+    MOV r2, r7
     BL printf
-    POP {r0-r3}
 
 		B process_loop
 
