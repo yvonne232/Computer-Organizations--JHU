@@ -88,6 +88,9 @@ menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 
 menu_choice: .word 0
 
 sample_input: .asciz "Hello from Team 1"
+debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
+encrypt_success_msg:    .asciz "Encryption complete!\n"
+
 input_filename:  .asciz "plaintxt.txt"
 output_filename: .asciz "encrypted.txt"
 read_mode:       .asciz "r"
@@ -592,6 +595,7 @@ encrypt_message:
 	# Program Dictionary:
 	# r4 - value n
 	# r5 - value e
+	# r7 - string pointer
 
 	SUB sp, sp, #8
     	STR lr, [sp, #0]
@@ -612,10 +616,30 @@ encrypt_message:
     	MOV r1, r5
     	BL printf
 
-	LDR lr, [sp, #0]
-	LDR r4, [sp, #4]
-	ADD sp, sp, #8
-	MOV pc, lr
+	LDR r7, =sample_input     @ r7 = pointer to current character
+	
+	process_loop:
+		LDRB r0, [r7], #1         @ Load byte and increment pointer
+    		CMP r0, #0                @ Check for null terminator
+    		BEQ done_processing
+		
+		@ Print original character (debug)
+    		LDR r1, =debug_char
+    		MOV r2, r0
+    		BL printf
+
+		B process_loop
+
+	done_processing:
+    		LDR r0, =encrypt_success_msg
+    		BL printf
+    		B encrypt_done
+
+	encrypt_done:
+		LDR lr, [sp, #0]
+		LDR r4, [sp, #4]
+		ADD sp, sp, #8
+		MOV pc, lr
 
 	
    
