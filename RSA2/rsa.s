@@ -91,11 +91,9 @@ sample_input: .asciz "Hello from Team 1"
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
 encrypted_char:   .asciz "  Encrypted to: %d\n\n"
+test_msg:      .asciz "\nTesting modexp: 5^3 mod 13...\n"
+test_result:   .asciz "modexp(%d,%d,%d) = %d (expected 8)\n"
 
-test_msg1:    .asciz "\nTesting exponential function...\n"
-test_result:  .asciz "Test case: %d^%d = %d (should be 32)\n\n"
-test_modexp_msg:   .asciz "Testing modexp function (5^3 mod 13)...\n"
-test_modexp_result:.asciz "modexp(%d,%d,%d) = %d (expected 8)\n\n"
 
 input_filename:  .asciz "plaintxt.txt"
 output_filename: .asciz "encrypted.txt"
@@ -606,6 +604,26 @@ encrypt_message:
 
 	SUB sp, sp, #4
 	STR lr, [sp, #0]
+	PUSH {r4-r8}
+	
+	@ =============================================
+    	@ TEST CASE: Verify modexp works (5^3 mod 13 = 8)
+    	@ =============================================
+    	LDR r0, =test_msg
+    	BL printf
+    
+    	MOV r0, #5             @ base = 5
+    	MOV r1, #3             @ exponent = 3
+    	MOV r2, #13            @ modulus = 13
+    	BL modexp              @ r0 = 5^3 mod 13
+    
+    	@ Print test result
+    	MOV r3, r0             @ Save result
+    	LDR r0, =test_result
+    	MOV r1, #5             @ base
+    	MOV r2, #3             @ exponent
+                         @ r3 already has result
+    	BL printf
 
     	# Load n and e back from memory
     	LDR r0, =n_val
@@ -662,6 +680,7 @@ encrypt_message:
     		BL printf
 
 		LDR lr, [sp, #0]
+		POP {r4-r8}
 		ADD sp, sp, #4
 		MOV pc, lr
 	
@@ -719,18 +738,27 @@ modexp:
 
 	SUB sp, sp, #4
 	STR lr, [sp, #0]
+
+	PUSH {r4-r8}
+    	
+	MOV r4, r0        @ Save base
+    	MOV r5, r1        @ Save exponent
+    	MOV r6, r2        @ Save modulus	
 	
-	@ First compute m^e using exponential function
-    	MOV r4, r2             @ Save modulus (n) in r4
-    	BL pow		         @ r0 = m^e
+	@ Compute m^e using pow function
+    	MOV r0, r4
+    	MOV r1, r5
+    	BL pow             @ r0 = m^e
 
 	@ Then compute mod n
-    	MOV r1, r4             @ Load modulus
+    	MOV r1, r6             @ Load modulus
     	BL mod_reduce          @ r0 = (m^e) mod n
 	
+	POP {r4-r8}
 	LDR lr, [sp, #0]
 	ADD sp, sp, #4
 	MOV pc, lr
+ 
 
 mod_reduce:
 	# Function: Modular Reduction: r0 = r0 mod r1
