@@ -35,6 +35,9 @@ main:
 	
 		CMP r0, #2
 		BEQ do_encrypt_message
+
+		CMP r0, #3
+		BEQ do_decrypt_message
 		
 		CMP r0, #4
     		BEQ Done
@@ -48,6 +51,10 @@ main:
 	do_encrypt_message:
     		BL encrypt_message
     		B menu_loop
+	
+	do_decrypt_message
+		BL decrypt_message
+		B menu_loop
 				
 	Done:
 		LDR lr, [sp, #0]
@@ -90,6 +97,10 @@ menu_choice: .word 0
 sample_input: .asciz "Hello from Team 1"
 debug_pow_msg: .asciz "Debug: %d^%d = %d (before mod)\n"
 debug_pow_result_msg: .asciz "Debug: pow result = %d\n"
+pow_test_msg:      .asciz "\nTesting pow function: 5^3...\n"
+pow_test_result:   .asciz "pow(%d, %d) = %d (expected 125)\n\n"
+mod_test_msg:      .asciz "Testing mod function: 17 mod 5...\n"
+mod_test_result:   .asciz "%d mod %d = %d (expected 2)\n\n"
 
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
@@ -106,6 +117,10 @@ write_mode:      .asciz "w"
 char_format:     .asciz "%c"
 input_error_msg: .asciz "Error opening input file.\n"
 output_error_msg:.asciz "Error opening output file.\n"
+
+
+
+sample_decrypt_input: .asciz "42 58 90"
 
 # End Main
 
@@ -614,6 +629,40 @@ encrypt_message:
     	STR r7, [sp, #16]  @ result
 	STR r8, [sp, #20]
     	
+    	# ==================================
+    	# TEST CASE: Verify pow(5,3) = 125
+    	# ==================================
+    	LDR r0, =pow_test_msg
+    	BL printf
+    
+    	MOV r0, #5        @ base
+    	MOV r1, #3        @ exponent
+    	BL pow            @ r0 = 5^3
+    
+    	# Print and verify result
+    	MOV r2, r0        @ save result
+    	LDR r0, =pow_test_result
+    	MOV r1, #5
+    	MOV r3, #125      @ expected value
+    	BL printf
+
+	# ================================
+    	# TEST CASE 2: Verify 17 mod 5 = 2
+    	# ================================
+    	LDR r0, =mod_test_msg
+    	BL printf
+    
+    	MOV r0, #17       @ dividend
+    	MOV r1, #5        @ divisor
+    	BL mod_reduce     @ r0 = 17 mod 5
+    
+    	MOV r3, r0        @ save result
+    	LDR r0, =mod_test_result
+    	MOV r1, #17
+    	MOV r2, #5
+    	MOV r4, #2        @ expected
+    	BL printf
+
     	# Load n and e back from memory
     	LDR r0, =n_val
     	LDR r4, [r0] 		@ r4 = n
@@ -662,6 +711,19 @@ encrypt_message:
     		MOV r3, r8
     		BL printf
     		POP {r0-r3}
+
+		# Step 2: Call mod_reduce - result = result mod n
+    MOV r0, r8        @ pow result
+    MOV r1, r4        @ n
+    BL mod_reduce     @ r0 = (char^e) mod n
+    MOV r8, r0        @ Save final result
+    
+    # Print encrypted character
+    PUSH {r0-r3}
+    LDR r0, =encrypted_char
+    MOV r1, r8
+    BL printf
+    POP {r0-r3}
 
 		B process_loop
 
