@@ -52,7 +52,7 @@ main:
     		BL encrypt_message
     		B menu_loop
 	
-	do_decrypt_message
+	do_decrypt_message:
 		BL decrypt_message
 		B menu_loop
 				
@@ -87,6 +87,7 @@ invalid_e_msg: .asciz "Invalid e. Must satisfy: 1 < e < phi and gcd(e, phi) = 1.
 msg_d: .asciz "Private exponent d = %d\n"
 n_val: .word 0
 e_val: .word 0
+d_val: .word 0
 
 debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
 trying_x: .asciz "Trying x = %d\n"
@@ -101,6 +102,12 @@ pow_test_msg:      .asciz "\nTesting pow function: 5^3...\n"
 pow_test_result:   .asciz "pow(%d, %d) = %d (expected 125)\n\n"
 mod_test_msg:      .asciz "Testing mod function: 17 mod 5...\n"
 mod_test_result:   .asciz "%d mod %d = %d (expected 2)\n\n"
+modexp_debug_input:  .asciz "modexp: computing %d^%d mod %d\n"
+modexp_debug_pow:    .asciz "  pow result: %d\n"
+modexp_debug_result: .asciz "  final result: %d\n\n"
+test_case_msg:      .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
+test_result_msg:    .asciz "modexp(%d,%d,%d) = %d\n"
+
 
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
@@ -118,9 +125,11 @@ char_format:     .asciz "%c"
 input_error_msg: .asciz "Error opening input file.\n"
 output_error_msg:.asciz "Error opening output file.\n"
 
-
-
-sample_decrypt_input: .asciz "42 58 90"
+sample_input_decrypt: .word 23, 45, 78, 89, 90, 0   @ Example encrypted numbers, null-terminated
+debug_num:          .asciz "Decrypting number: %d\n"
+debug_num_msg: .asciz "Encrypted number: %d\n"
+decrypted_char:     .asciz "  Decrypted to: %c (ASCII %d)\n\n"
+decrypt_success_msg: .asciz "Decryption complete!\n"
 
 # End Main
 
@@ -176,12 +185,15 @@ generate_keys:
 	BL cprivexp
 	MOV r9, r0	// Store d in r9
 
-	# Store n and e permanently
+	# Store n and e and d permanently
 	LDR r0, =n_val
     	STR r6, [r0]
 
     	LDR r0, =e_val
     	STR r8, [r0]
+	
+	LDR r0, =d_val
+	STR r9, [r0]
 
 	B generateKeys_Done
 	
@@ -663,6 +675,20 @@ encrypt_message:
     	MOV r4, #2        @ expected
     	BL printf
 
+	# Test case: 5^3 mod 13 = 8 (should pass)
+    	MOV r0, #5         @ base
+    	MOV r1, #3         @ exponent
+    	MOV r2, #13        @ modulus
+    	BL modexp
+    
+    	# Verify test result
+    	MOV r4, r0         @ save result
+    	LDR r0, =test_result_msg
+    	MOV r1, #5
+    	MOV r2, #3
+    	MOV r3, #13
+    	BL printf
+
     	# Load n and e back from memory
     	LDR r0, =n_val
     	LDR r4, [r0] 		@ r4 = n
@@ -797,42 +823,59 @@ modexp:
 	# Input: r0 = base (m), r1 = exponent (e), r2 = modulus (n)
 	# Output: r0 = result (c)
 
-	SUB sp, sp, #24
-	STR lr, [sp, #0]
-
-	PUSH {r4-r8}
+	SUB sp, sp, #20
+    	STR lr, [sp, #0]
+    	STR r4, [sp, #4]   @ save base
+    	STR r5, [sp, #8]   @ save exponent
+    	STR r6, [sp, #12]  @ save modulus
+    	STR r7, [sp, #16]  @ save result
     		
 	
 	MOV r4, r0             @ r4 = base
     	MOV r5, r1             @ r5 = exponent
     	MOV r6, r2             @ r6 = modulus
     
-    	@ Handle modulus 1 case
+    	# Handle special case (modulus 1)
     	CMP r6, #1
-    	MOVEQ r0, #0
-    	BEQ modexp_done
+    	BNE normal_case
+    	MOV r0, #0
+    	B modexp_done
     
-    	@ Compute base^exponent using pow
-    	MOV r0, r4
-    	MOV r1, r5
+    	normal_case:
+    	# Step 1: Compute base^exp using pow
+    	MOV r0, r4          @ base
+    	MOV r1, r5          @ exponent
     	BL pow
-	
-	@ Debug print pow result
-    	MOV r7, r0        @ Save pow result
-    	LDR r0, =debug_pow_result_msg
+    	MOV r7, r0          @ save pow result
+    
+    	# Debug: print pow result
+    	LDR r0, =modexp_debug_pow
     	MOV r1, r7
     	BL printf
     
-    	@ Compute mod n
-    	MOV r0, r7
-    	MOV r1, r6
+    	# Step 2: Compute mod reduction
+    	MOV r0, r7          @ pow result
+    	MOV r1, r6          @ modulus
     	BL mod_reduce
-
-	modexp_done:	
-		POP {r4-r8}
-		LDR lr, [sp, #0]
-		ADD sp, sp, #24
-		MOV pc, lr
+    	MOV r7, r0          @ final result
+    
+    	# Debug: print final result
+    	LDR r0, =modexp_debug_result
+    	MOV r1, r7
+    	BL printf
+    
+    	modexp_done:
+    	# Return result
+    	MOV r0, r7
+    
+    	# Epilogue
+    	LDR lr, [sp, #0]
+    	LDR r4, [sp, #4]
+    	LDR r5, [sp, #8]
+    	LDR r6, [sp, #12]
+    	LDR r7, [sp, #16]
+    	ADD sp, sp, #20
+    	MOV pc, lr
  
 .text
 mod_reduce:
@@ -841,4 +884,98 @@ mod_reduce:
     	BL __aeabi_idivmod     @ r1 = r0 % r1
     	MOV r0, r1             @ Return remainder
     	POP {pc}
-	
+
+/* ------------------------------------ */
+/* Decrypt the message from string input */
+.text
+decrypt_message:
+    # Function purpose: Decrypt message from string input
+    # Register usage:
+    # r4 - modulus n
+    # r5 - private key d
+    # r6 - encrypted number pointer
+    # r7 - current encrypted number
+    # r8 - decrypted character
+    # r9 - flag for number parsing
+    
+    SUB sp, sp, #28
+    STR lr, [sp, #0]
+    STR r4, [sp, #4]   @ n
+    STR r5, [sp, #8]   @ d
+    STR r6, [sp, #12]  @ string pointer
+    STR r7, [sp, #16]  @ current char
+    STR r8, [sp, #20]  @ current number
+    STR r9, [sp, #24]  @ number flag (0 = not parsing, 1 = parsing)
+
+    # Load n and d from memory
+    LDR r6, =n_val
+    LDR r6, [r6]        @ r6 = n
+    
+    LDR r7, =d_val
+    LDR r7, [r7]        @ r7 = d
+    
+    # Load address of encrypted numbers
+    LDR r4, =sample_input_decrypt
+    
+    decrypt_loop:
+        # Load next number to decrypt
+        LDR r5, [r4], #4    @ r5 = *r4, then r4 += 4
+        
+        # Check for termination (0 value)
+        CMP r5, #0
+        BEQ decrypt_done
+        
+        # Here would be the actual decryption:
+        # MOV r0, r5        @ encrypted number
+        # MOV r1, r7        @ private exponent d
+        # MOV r2, r6        @ modulus n
+        # BL modexp         @ result = encrypted^d mod n
+        
+        # For now just print the encrypted number (debug)
+        MOV r1, r5
+        LDR r0, =debug_num_msg
+        BL printf
+        
+        B decrypt_loop
+
+decrypt_done:
+    # Print completion message
+    LDR r0, =decrypt_success_msg
+    BL printf
+
+    # Restore registers and return
+    LDR lr, [sp, #0]
+    LDR r4, [sp, #4]
+    LDR r5, [sp, #8]
+    LDR r6, [sp, #12]
+    LDR r7, [sp, #16]
+    LDR r8, [sp, #20]
+    LDR r9, [sp, #24]
+    ADD sp, sp, #28
+    MOV pc, lr
+
+decrypt_number:
+    # Decrypt the number in r8 using (d,n) in r5,r4
+    # Preserves all registers except r0-r3
+    
+    PUSH {r4-r9, lr}
+    
+    # Print encrypted number
+    LDR r0, =debug_num
+    MOV r1, r8
+    BL printf
+    
+    # RSA decrypt: m = c^d mod n
+    MOV r0, r8        @ c (encrypted number)
+    MOV r1, r5        @ d
+    MOV r2, r4        @ n
+    BL modexp         @ m = c^d mod n
+    
+    # Print decrypted character
+    MOV r2, r0        @ Save ASCII value
+    LDR r0, =decrypted_char
+    MOV r1, r2        @ Pass ASCII value twice (for %c and %d)
+    BL printf
+    
+    POP {r4-r9, lr}
+    MOV pc, lr
