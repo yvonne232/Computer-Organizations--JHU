@@ -793,9 +793,12 @@ modexp:
     MOV r0, r7          @ dividend = pow result
     MOV r1, r6          @ divisor = modulus
     BL mod_reduce       @ r0 = (base^exp) mod modulus
+    MOV r7, r0
+
 
 modexp_exit:
     @ r0 already holds the result
+    MOV r0, r7
     LDR lr, [sp, #0]
     LDR r4, [sp, #4]
     LDR r5, [sp, #8]
