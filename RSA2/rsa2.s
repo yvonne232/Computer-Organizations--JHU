@@ -89,6 +89,7 @@ msg_d: .asciz "Private exponent d = %d\n"
 n_val: .word 0
 e_val: .word 0
 d_val: .word 0
+mod_val: .word 0    @ Memory location to store mod result
 
 debug_e: .asciz "Debug Before cprivexp: e = %d, phi = %d\n"
 trying_x: .asciz "Trying x = %d\n"
@@ -106,6 +107,7 @@ encrypted_char: .asciz "  Encrypted to: %d\n\n"
 decrypted_char: .asciz "  Decrypted to: %c (ASCII %d)\n\n"
 debug_num: .asciz "Decrypting number: %d\n"
 debug_num_msg: .asciz "Encrypted number: %d\n"
+debug_mod_msg: .asciz "Modulus: %d, Mod result: %d\n"
 
 /* Test case messages */
 pow_test_msg: .asciz "\nTesting pow function: 5^3...\n"
@@ -768,7 +770,7 @@ modexp:
 	# Function: Modular Exponentiation using exponential: c = m^e mod n
 	# Input: r0 = base (m), r1 = exponent (e), r2 = modulus (n)
 	# Output: r0 = result (c)
-    PUSH {r4-r6, lr}
+    PUSH {r4-r7, lr}
     MOV r4, r0        @ base
     MOV r5, r1        @ exponent
     MOV r6, r2        @ modulus
@@ -782,24 +784,35 @@ modexp:
     MOV r0, r4        @ base
     MOV r1, r5        @ exponent
     BL pow            @ r0 = base^exponent
+    Mov r7, r0
     
     /* Debug: print pow result */
-    LDR r1, =modexp_debug_pow
-    MOV r2, r0
+    LDR r0, =modexp_debug_pow
+    MOV r1, r7
     BL printf
     
     /* Step 2: Compute mod reduction */
-    MOV r1, r6        @ modulus
-    BL mod_reduce     @ r0 = (base^exponent) mod modulus
-    
-    /* Debug: print final result */
-    LDR r1, =modexp_debug_result
-    MOV r2, r0
+    MOV r0, r7            @ Load pow result
+    MOV r1, r6            @ modulus
+    BL mod_reduce         @ r0 = (m^e) mod n
+    MOV r7, r0            @ Save mod result in r7
+
+    LDR r0, =mod_val
+    STR r7, [r1]   
+
+    @ Print modulus and mod result
+    LDR r0, =debug_mod_msg
+    MOV r1, r6            @ modulus value
+    MOV r2, r7            @ mod result
     BL printf
+
+	
+
+    MOV r0, r7            @ Return the result
     
 modexp_done:
     /* Restore registers and return */
-    POP {r4-r6, pc}
+    POP {r4-r7, pc}
 
 	
 .text
@@ -867,12 +880,13 @@ run_tests:
     BL modexp
     
     # Verify test result
-    MOV r4, r0         @ save result
+    LDR r4, =mod_val
+    LDR r4, [r4]       @ Get result from memory
     LDR r0, =test_result_msg
     MOV r1, #5
     MOV r2, #3
     MOV r3, #13
-    MOV r4, r4         @ actual result
+    
     BL printf
 
    
