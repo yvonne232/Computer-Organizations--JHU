@@ -34,13 +34,13 @@ main:
     		BEQ do_generate_keys
 	
 		CMP r0, #2
-		BEQ encrypt_message
+		BEQ do_encrypt_message
 		
 		CMP r0, #4
     		BEQ Done
 	
 		B menu_loop     @ re-show menu if input was invalid
-	
+
 	do_generate_keys:
     		BL generate_keys
     		B menu_loop
@@ -90,6 +90,12 @@ menu_choice: .word 0
 sample_input: .asciz "Hello from Team 1"
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
+encrypted_char:   .asciz "  Encrypted to: %d\n\n"
+
+test_msg1:    .asciz "\nTesting exponential function...\n"
+test_result:  .asciz "Test case: %d^%d = %d (should be 32)\n\n"
+test_modexp_msg:   .asciz "Testing modexp function (5^3 mod 13)...\n"
+test_modexp_result:.asciz "modexp(%d,%d,%d) = %d (expected 8)\n\n"
 
 input_filename:  .asciz "plaintxt.txt"
 output_filename: .asciz "encrypted.txt"
@@ -588,19 +594,19 @@ computePhi:
 
 
 /* ------------------------------------ */
-/* Encrypt text */
+/* Encrypt the message*/
+.text
 encrypt_message:
 	# Function purpose: main encrypt message function
 	
 	# Program Dictionary:
 	# r4 - value n
 	# r5 - value e
-	# r7 - string pointer
+	# r6 - string pointer
 
-	SUB sp, sp, #8
-    	STR lr, [sp, #0]
-    	STR r4, [sp, #4]   @ Save additional register we'll use
-    
+	SUB sp, sp, #4
+	STR lr, [sp, #0]
+
     	# Load n and e back from memory
     	LDR r0, =n_val
     	LDR r4, [r0] 		@ r4 = n
@@ -616,16 +622,37 @@ encrypt_message:
     	MOV r1, r5
     	BL printf
 
-	LDR r7, =sample_input     @ r7 = pointer to current character
+	LDR r6, =sample_input     @ r7 = pointer to current character
+
+	
 	
 	process_loop:
-		LDRB r0, [r7], #1         @ Load byte and increment pointer
-    		CMP r0, #0                @ Check for null terminator
+		LDRB r7, [r6], #1      @ r7 = current character
+    		CMP r7, #0             @ Check for null terminator
     		BEQ done_processing
-		
-		@ Print original character (debug)
-    		LDR r1, =debug_char
-    		MOV r2, r0
+    
+    		@ Skip space characters (ASCII 32)
+    		CMP r7, #32
+    		BEQ process_loop
+    
+    		@ Print original character
+    		PUSH {r0-r3, lr}
+    		LDR r0, =debug_char
+    		MOV r1, r7
+    		MOV r2, r7
+    		BL printf
+    		POP {r0-r3, lr}
+    
+    		@ RSA encrypt: c = m^e mod n
+    		MOV r0, r7             @ m (character)
+    		MOV r1, r5             @ e
+    		MOV r2, r4             @ n
+    		BL modexp              @ c = m^e mod n
+    		MOV r7, r0             @ Save encrypted character
+    
+    		@ Print encrypted character
+    		LDR r0, =encrypted_char
+    		MOV r1, r7
     		BL printf
 
 		B process_loop
@@ -633,14 +660,84 @@ encrypt_message:
 	done_processing:
     		LDR r0, =encrypt_success_msg
     		BL printf
-    		B encrypt_done
 
-	encrypt_done:
 		LDR lr, [sp, #0]
-		LDR r4, [sp, #4]
-		ADD sp, sp, #8
+		ADD sp, sp, #4
+		MOV pc, lr
+	
+# End encrypt_message
+
+/* ------------------------------------ */
+/* Encrypt message helper function */
+.text
+pow:
+	# Function: Exponential Function: result = m^e
+	# Input: r0 = base (m), r1 = exponent (e)
+	# Output: r0 = result
+
+	# Program Dictionary:
+	# r4 - current base m
+	# r5 - exponent e
+	
+	SUB sp, sp, #4
+	STR lr, [sp, #0] 
+	PUSH {r4-r5}
+	
+	@ Handle special cases
+    	CMP r1, #0             @ If exponent == 0
+    	MOVEQ r0, #1           @ Return 1 (anything^0 = 1)
+    	BEQ exp_done
+
+	MOV r4, r0             @ r4 = current base = m
+    	MOV r5, r1             @ r5 = exponent = e
+    	SUB r5, r5, #1         @ We already have m^1
+
+	exp_loop:
+    		@ Multiply m by itself e-1 times
+    		CMP r5, #0             @ Check if counter reached 0
+    		BEQ exp_done
+    
+    		MUL r4, r4, r0         @ running_product *= m
+    		SUB r5, r5, #1         @ decrement counter
+    
+    		B exp_loop
+
+	exp_done:
+    		MOV r0, r4             @ Return final result
+		POP {r4-r5}
+		LDR lr, [sp, #0]
+		ADD sp, sp, #4
 		MOV pc, lr
 
+# End pow
+
+.text
+modexp:
+	# Function: Modular Exponentiation using exponential: c = m^e mod n
+	# Input: r0 = base (m), r1 = exponent (e), r2 = modulus (n)
+	# Output: r0 = result (c)
+
+	SUB sp, sp, #4
+	STR lr, [sp, #0]
 	
-   
+	@ First compute m^e using exponential function
+    	MOV r4, r2             @ Save modulus (n) in r4
+    	BL pow		         @ r0 = m^e
+
+	@ Then compute mod n
+    	MOV r1, r4             @ Load modulus
+    	BL mod_reduce          @ r0 = (m^e) mod n
+	
+	LDR lr, [sp, #0]
+	ADD sp, sp, #4
+	MOV pc, lr
+
+mod_reduce:
+	# Function: Modular Reduction: r0 = r0 mod r1
+    	PUSH {lr}
+    	BL __aeabi_idivmod     @ r1 = r0 % r1
+    	MOV r0, r1             @ Return remainder
+    	POP {pc}	
+
+
 
