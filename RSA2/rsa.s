@@ -89,6 +89,7 @@ menu_choice: .word 0
 
 sample_input: .asciz "Hello from Team 1"
 debug_pow_msg: .asciz "Debug: %d^%d = %d (before mod)\n"
+debug_pow_result_msg: .asciz "Debug: pow result = %d\n"
 
 debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
 encrypt_success_msg:    .asciz "Encryption complete!\n"
@@ -605,16 +606,13 @@ encrypt_message:
 	# r5 - value e
 	# r6 - string pointer
 
-	SUB sp, sp, #4
-	STR lr, [sp, #0]
-	PUSH {r4-r8}
-	
-	@ =============================================
-    	@ TEST CASE: Verify modexp works (5^3 mod 13 = 8)
-    	@ =============================================
-    	LDR r0, =test_msg
-    	BL printf
-    
+	SUB sp, sp, #24
+    	STR lr, [sp, #0]
+    	STR r4, [sp, #4]   @ base
+    	STR r5, [sp, #8]   @ exponent
+    	STR r6, [sp, #12]  @ modulus
+    	STR r7, [sp, #16]  @ result
+	STR r8, [sp, #20]
     	
     	# Load n and e back from memory
     	LDR r0, =n_val
@@ -631,7 +629,7 @@ encrypt_message:
     	MOV r1, r5
     	BL printf
 
-	LDR r6, =sample_input     @ r7 = pointer to current character
+	LDR r6, =sample_input     @ r6 = pointer to current character
 	
 	process_loop:
 		LDRB r7, [r6], #1      @ r7 = current character
@@ -650,17 +648,20 @@ encrypt_message:
     		BL printf
     		POP {r0-r3, lr}
     
-    		@ RSA encrypt: c = m^e mod n
-    		MOV r0, r7             @ m (character)
-    		MOV r1, r5             @ e
-    		MOV r2, r4             @ n
-    		BL modexp              @ c = m^e mod n
-    		MOV r7, r0             @ Save encrypted character
+    		# Step 1: Call pow - result = char^e
+    		MOV r0, r7        @ m (character)
+    		MOV r1, r5        @ e
+    		BL pow            @ r0 = char^e
+    		MOV r8, r0        @ Save pow result
     
-    		@ Print encrypted character
-    		LDR r0, =encrypted_char
+    		# Debug print pow result
+    		PUSH {r0-r3}
+    		LDR r0, =debug_pow_msg
     		MOV r1, r7
+    		MOV r2, r5
+    		MOV r3, r8
     		BL printf
+    		POP {r0-r3}
 
 		B process_loop
 
@@ -669,9 +670,13 @@ encrypt_message:
     		BL printf
 
 		LDR lr, [sp, #0]
-		POP {r4-r8}
-		ADD sp, sp, #4
-		MOV pc, lr
+    		LDR r4, [sp, #4]
+    		LDR r5, [sp, #8]
+    		LDR r6, [sp, #12]
+    		LDR r7, [sp, #16]
+		LDR r8, [sp, #20]
+    		ADD sp, sp, #24
+    		MOV pc, lr
 	
 # End encrypt_message
 
@@ -693,7 +698,9 @@ pow:
     	STR r5, [sp, #8]
 	STR r6, [sp, #12]  @ result
 
-	
+	MOV r4, r0           @ Store base in r4
+	MOV r5, r1           @ Store exponent in r5
+
 	@ Handle special cases
     	CMP r5, #0
     	MOVEQ r6, #1
@@ -712,13 +719,13 @@ pow:
         	BNE pow_loop
     
 	pow_done:
-    	MOV r0, r6        @ Return result
-    	LDR lr, [sp, #0]
-    	LDR r4, [sp, #4]
-    	LDR r5, [sp, #8]
-    	LDR r6, [sp, #12]
-    	ADD sp, sp, #16
-    	MOV pc, lr
+    		MOV r0, r6        @ Return result
+    		LDR lr, [sp, #0]
+    		LDR r4, [sp, #4]
+    		LDR r5, [sp, #8]
+    		LDR r6, [sp, #12]
+    		ADD sp, sp, #16
+    		MOV pc, lr
 
 # End pow
 
@@ -728,7 +735,7 @@ modexp:
 	# Input: r0 = base (m), r1 = exponent (e), r2 = modulus (n)
 	# Output: r0 = result (c)
 
-	SUB sp, sp, #4
+	SUB sp, sp, #24
 	STR lr, [sp, #0]
 
 	PUSH {r4-r8}
@@ -737,38 +744,35 @@ modexp:
 	MOV r4, r0             @ r4 = base
     	MOV r5, r1             @ r5 = exponent
     	MOV r6, r2             @ r6 = modulus
-
-	@ Debug print: show m^e
-    PUSH {r0-r3}       @ Save registers
-    MOV r3, r0         @ Save result
-    LDR r0, =debug_pow_msg
-    MOV r1, r4         @ m
-    MOV r2, r5         @ e
-    BL printf
-    MOV r0, r3         @ Restore result
-    POP {r0-r3}        @ Restore registers
     
     	@ Handle modulus 1 case
-    CMP r6, #1
-    MOVEQ r0, #0
-    BEQ modexp_done
+    	CMP r6, #1
+    	MOVEQ r0, #0
+    	BEQ modexp_done
     
-    @ Compute base^exponent using pow
-    MOV r0, r4
-    MOV r1, r5
-    BL pow
+    	@ Compute base^exponent using pow
+    	MOV r0, r4
+    	MOV r1, r5
+    	BL pow
+	
+	@ Debug print pow result
+    	MOV r7, r0        @ Save pow result
+    	LDR r0, =debug_pow_result_msg
+    	MOV r1, r7
+    	BL printf
     
-    @ Now compute mod
-    MOV r1, r6
-    BL mod_reduce
+    	@ Compute mod n
+    	MOV r0, r7
+    	MOV r1, r6
+    	BL mod_reduce
 
 	modexp_done:	
 		POP {r4-r8}
 		LDR lr, [sp, #0]
-		ADD sp, sp, #4
+		ADD sp, sp, #24
 		MOV pc, lr
  
-
+.text
 mod_reduce:
 	# Function: Modular Reduction: r0 = r0 mod r1
     	PUSH {lr}
