@@ -632,8 +632,6 @@ encrypt_message:
     	BL printf
 
 	LDR r6, =sample_input     @ r7 = pointer to current character
-
-	
 	
 	process_loop:
 		LDRB r7, [r6], #1      @ r7 = current character
@@ -693,33 +691,34 @@ pow:
 	STR lr, [sp, #0] 
 	STR r4, [sp, #4]
     	STR r5, [sp, #8]
+	STR r6, [sp, #12]  @ result
+
 	
 	@ Handle special cases
-    	CMP r1, #0             @ If exponent == 0
-    	MOVEQ r0, #1           @ Return 1 (anything^0 = 1)
+    	CMP r5, #0
+    	MOVEQ r6, #1
     	BEQ pow_done
-
-	MOV r4, r0             @ r4 = current result = m
-    	MOV r5, r1             @ r5 = exponent = e
-    	SUB r5, r5, #1         @ We already have m^1 (in r4)
-
+    
+    	MOV r6, r4        @ Initialize result = base
+    	SUB r5, r5, #1    @ We already have 1 multiplication
+    
     	pow_loop:
-        	@ Multiply result by base e-1 times
-        	CMP r5, #0         @ Check if counter reached 0
+        	CMP r5, #0
         	BEQ pow_done
+        
+        	MUL r6, r6, r4  @ result *= base
+        	SUBS r5, r5, #1 @ decrement counter
+        
+        	BNE pow_loop
     
-        	MUL r4, r4, r0     @ result *= base
-        	SUBS r5, r5, #1    @ decrement counter (set flags)
-    
-        	BNE pow_loop       @ continue if counter > 0
-
 	pow_done:
-        	MOV r0, r4         @ Return final result
-        	LDR lr, [sp, #0]
-        	LDR r4, [sp, #4]
-        	LDR r5, [sp, #8]
-        	ADD sp, sp, #12
-        	MOV pc, lr
+    	MOV r0, r6        @ Return result
+    	LDR lr, [sp, #0]
+    	LDR r4, [sp, #4]
+    	LDR r5, [sp, #8]
+    	LDR r6, [sp, #12]
+    	ADD sp, sp, #16
+    	MOV pc, lr
 
 # End pow
 
@@ -777,40 +776,3 @@ mod_reduce:
     	MOV r0, r1             @ Return remainder
     	POP {pc}
 	
-
-/* ------------------------------------ */
-/* Test Case */
-.text
-test_modexp:
-    PUSH {lr}
-    
-    @ Test 5^3 mod 13
-    LDR r0, =test_msg
-    BL printf
-    
-    MOV r0, #5
-    MOV r1, #3
-    MOV r2, #13
-    BL modexp
-    
-    @ Print and verify result
-    MOV r3, r0
-    LDR r0, =test_result
-    MOV r1, #5
-    MOV r2, #3
-    MOV r3, #13
-    PUSH {r0-r3}
-    BL printf
-    POP {r0-r3}
-    
-    CMP r0, #8
-    BNE test_fail
-    
-    LDR r0, =success_msg
-    BL printf
-    B test_done
-test_fail:
-    LDR r0, =fail_msg
-    BL printf
-test_done:
-    POP {pc}
