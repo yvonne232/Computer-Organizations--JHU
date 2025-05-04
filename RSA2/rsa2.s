@@ -783,10 +783,38 @@ modexp:
 mod_reduce:
 	# Function: Modular Reduction: r0 = r0 mod r1
     	PUSH {lr}
-    	BL __aeabi_idivmod     @ r1 = r0 % r1
+    	BL __aeabi_idivmod     @ r1 = r0 % r
+	MOV r0, r1             @ Return remainder
+    	POP {pc}
+
+.text
+run_tests:
+    SUB sp, sp, #28
+    STR lr, [sp, #0]
+    STR r4, [sp, #4]   
+    STR r5, [sp, #8]   
+    STR r6, [sp, #12]  
+    STR r7, [sp, #16]
+    STR r8, [sp, #20] 
+    STR r9, [sp, #24] 
+    
+    # ==================================
+    # TEST CASE 1: Verify pow(5,3) = 125
+    # ==================================
+    LDR r0, =pow_test_msg
+    BL printf
+    
+    MOV r0, #5        @ base
+    MOV r1, #3        @ exponent
+    BL pow            @ r0 = 5^3
+    
+    # Print and verify result
+    MOV r2, r0        @ save result
+    LDR r0, =pow_test_result
     MOV r1, #5
     MOV r3, #3
     BL printf
+
 
     # ================================
     # TEST CASE 2: Verify 17 mod 5 = 2
@@ -831,7 +859,9 @@ mod_reduce:
     LDR r5, [sp, #8]
     LDR r6, [sp, #12]
     LDR r7, [sp, #16]
-    ADD sp, sp, #20
+    LDR r8, [sp, #20]
+    LDR r9, [sp, #24]
+    ADD sp, sp, #28
     MOV pc, lr
 
 
@@ -905,33 +935,6 @@ decrypt_done:
     ADD sp, sp, #28
     MOV pc, lr
 
-decrypt_number:
-    # Decrypt the number in r8 using (d,n) in r5,r4
-    # Preserves all registers except r0-r3
-    
-    PUSH {r4-r9, lr}
-    
-    # Print encrypted number
-    LDR r0, =debug_num
-    MOV r1, r8
-    BL printf
-    
-    # RSA decrypt: m = c^d mod n
-    MOV r0, r8        @ c (encrypted number)
-    MOV r1, r5        @ d
-    MOV r2, r4        @ n
-    BL modexp         @ m = c^d mod n
-    
-    # Print decrypted character
-    MOV r2, r0        @ Save ASCII value
-    LDR r0, =decrypted_char
-    LDR r5, [sp, #8]
-    LDR r6, [sp, #12]
-    LDR r7, [sp, #16]
-    LDR r8, [sp, #20]
-    LDR r9, [sp, #24]
-    ADD sp, sp, #28
-    MOV pc, lr
 
 decrypt_number:
     # Decrypt the number in r8 using (d,n) in r5,r4
