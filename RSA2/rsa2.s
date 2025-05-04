@@ -97,26 +97,28 @@ menu_text: .asciz "\nSelect an option:\n1 - Generate Public and Private Keys\n2 
 menu_choice: .word 0
 
 sample_input: .asciz "Hello from Team 1"
+
+/* Debug messages for encryption/decryption */
 debug_pow_msg: .asciz "Debug: %d^%d = %d (before mod)\n"
 debug_pow_result_msg: .asciz "Debug: pow result = %d\n"
-pow_test_msg:      .asciz "\nTesting pow function: 5^3...\n"
-pow_test_result:   .asciz "pow(%d, %d) = %d (expected 125)\n\n"
-mod_test_msg:      .asciz "Testing mod function: 17 mod 5...\n"
-mod_test_result:   .asciz "%d mod %d = %d (expected 2)\n\n"
-modexp_debug_input:  .asciz "Testing modexp function: computing %d^%d mod %d\n"
-modexp_debug_pow:    .asciz "pow result: %d\n"
+debug_char: .asciz "Processing char: %c (ASCII %d)\n"
+encrypted_char: .asciz "  Encrypted to: %d\n\n"
+decrypted_char: .asciz "  Decrypted to: %c (ASCII %d)\n\n"
+debug_num: .asciz "Decrypting number: %d\n"
+debug_num_msg: .asciz "Encrypted number: %d\n"
+
+/* Test case messages */
+pow_test_msg: .asciz "\nTesting pow function: 5^3...\n"
+pow_test_result: .asciz "pow(%d, %d) = %d (expected 125)\n\n"
+mod_test_msg: .asciz "Testing mod function: 17 mod 5...\n"
+mod_test_result: .asciz "%d mod %d = %d (expected 2)\n\n"
+modexp_debug_input: .asciz "Testing modexp function: computing %d^%d mod %d\n"
+modexp_debug_pow: .asciz "pow result: %d\n"
 modexp_debug_result: .asciz "final result: %d\n\n"
-test_case_msg:      .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
-test_result_msg:    .asciz "modexp(%d,%d,%d) = %d\n"
+test_case_msg: .asciz "\nRunning modexp test case: 5^3 mod 13 (expect 8)\n"
+test_result_msg: .asciz "modexp(%d,%d,%d) = %d\n"
 
 
-debug_char:     .asciz "Processing char: %c (ASCII %d)\n"
-encrypt_success_msg:    .asciz "Encryption complete!\n"
-encrypted_char:   .asciz "  Encrypted to: %d\n\n"
-test_msg:      .asciz "\nTesting modexp: 5^3 mod 13...\n"
-test_result:   .asciz "modexp(%d,%d,%d) = %d (expected 8)\n"
-success_msg:  .asciz "Test PASSED (got expected result 8)\n"
-fail_msg:     .asciz "Test FAILED (expected 8)\n"
 
 input_filename:  .asciz "plaintxt.txt"
 output_filename: .asciz "encrypted.txt"
@@ -127,9 +129,9 @@ input_error_msg: .asciz "Error opening input file.\n"
 output_error_msg:.asciz "Error opening output file.\n"
 
 sample_input_decrypt: .word 23, 45, 78, 89, 90, 0   @ Example encrypted numbers, null-terminated
-debug_num:          .asciz "Decrypting number: %d\n"
-debug_num_msg: .asciz "Encrypted number: %d\n"
-decrypted_char:     .asciz "  Decrypted to: %c (ASCII %d)\n\n"
+
+/* Success/failure messages */
+encrypt_success_msg: .asciz "Encryption complete!\n"
 decrypt_success_msg: .asciz "Decryption complete!\n"
 
 # End Main
@@ -734,23 +736,24 @@ pow:
 
 	@ Handle special cases
     	CMP r5, #0
-    	MOVEQ r6, #1
+    	MOVEQ r0, #1
     	BEQ pow_done
     
-    	MOV r6, r4        @ Initialize result = base
-    	SUB r5, r5, #1    @ We already have 1 multiplication
+    	 /* Initialize result to base */
+    	MOV r0, r4
     
-    	pow_loop:
-        	CMP r5, #0
-        	BEQ pow_done
-        
-        	MUL r6, r6, r4  @ result *= base
-        	SUBS r5, r5, #1 @ decrement counter
-        
-        	BNE pow_loop
+    	/* If exponent is 1, return */
+    	CMP r5, #1
+    	BEQ pow_done
+    
+    	/* Multiply base (exponent-1) times */
+    	SUB r5, r5, #1
+	pow_loop:
+    		MUL r0, r0, r4    @ result *= base
+    		SUBS r5, r5, #1   @ decrement counter
+    		BNE pow_loop
     
 	pow_done:
-    		MOV r0, r6        @ Return result
     		LDR lr, [sp, #0]
     		LDR r4, [sp, #4]
     		LDR r5, [sp, #8]
@@ -765,17 +768,37 @@ modexp:
 	# Function: Modular Exponentiation using exponential: c = m^e mod n
 	# Input: r0 = base (m), r1 = exponent (e), r2 = modulus (n)
 	# Output: r0 = result (c)
-
-	    PUSH {r4-r6, lr}
+    PUSH {r4-r6, lr}
     MOV r4, r0        @ base
     MOV r5, r1        @ exponent
     MOV r6, r2        @ modulus
     
-    # Compute pow(base, exp)
-    BL pow
-    MOV r1, r6        @ modulus
-    BL mod_reduce     @ pow result % modulus
+    /* Handle modulus 1 case */
+    CMP r6, #1
+    MOVEQ r0, #0
+    BEQ modexp_done
     
+    /* Step 1: Compute base^exponent using pow */
+    MOV r0, r4        @ base
+    MOV r1, r5        @ exponent
+    BL pow            @ r0 = base^exponent
+    
+    /* Debug: print pow result */
+    LDR r1, =modexp_debug_pow
+    MOV r2, r0
+    BL printf
+    
+    /* Step 2: Compute mod reduction */
+    MOV r1, r6        @ modulus
+    BL mod_reduce     @ r0 = (base^exponent) mod modulus
+    
+    /* Debug: print final result */
+    LDR r1, =modexp_debug_result
+    MOV r2, r0
+    BL printf
+    
+modexp_done:
+    /* Restore registers and return */
     POP {r4-r6, pc}
 
 	
@@ -809,10 +832,10 @@ run_tests:
     BL pow            @ r0 = 5^3
     
     # Print and verify result
-    MOV r2, r0        @ save result
+    MOV r3, r0        @ save result
     LDR r0, =pow_test_result
     MOV r1, #5
-    MOV r3, #3
+    MOV r2, #3
     BL printf
 
 
