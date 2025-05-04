@@ -49,6 +49,7 @@ main:
     		B menu_loop
 
 	do_encrypt_message:
+		BL run_tests
     		BL encrypt_message
     		B menu_loop
 	
@@ -641,59 +642,6 @@ encrypt_message:
     	STR r7, [sp, #16]  @ result
 	STR r8, [sp, #20]
     	
-    	# ==================================
-    	# TEST CASE: Verify pow(5,3) = 125
-    	# ==================================
-    	LDR r0, =pow_test_msg
-    	BL printf
-    
-    	MOV r0, #5        @ base
-    	MOV r1, #3        @ exponent
-    	BL pow            @ r0 = 5^3
-    
-    	# Print and verify result
-    	MOV r2, r0        @ save result
-    	LDR r0, =pow_test_result
-    	MOV r1, #5
-    	MOV r3, #125      @ expected value
-    	BL printf
-
-	# ================================
-    	# TEST CASE 2: Verify 17 mod 5 = 2
-    	# ================================
-    	LDR r0, =mod_test_msg
-    	BL printf
-    
-    	MOV r0, #17       @ dividend
-    	MOV r1, #5        @ divisor
-    	BL mod_reduce     @ r0 = 17 mod 5
-    
-    	MOV r3, r0        @ save result
-    	LDR r0, =mod_test_result
-    	MOV r1, #17
-    	MOV r2, #5
-    	MOV r4, #2        @ expected
-    	BL printf
-
-	# ============================================
-    	# TEST CASE 3: Verify modexp(5,3,13) = 8
-    	# ============================================
-    	LDR r0, =test_case_msg
-    	BL printf
-    
-    	MOV r0, #5         @ base
-    	MOV r1, #3         @ exponent
-    	MOV r2, #13        @ modulus
-    	BL modexp
-    
-    	# Verify test result
-    	MOV r4, r0         @ save result
-    	LDR r0, =test_result_msg
-    	MOV r1, #5
-    	MOV r2, #3
-    	MOV r3, #13
-    	MOV r4, r4         @ actual result
-    	BL printf
 
     	# Load n and e back from memory
     	LDR r0, =n_val
@@ -711,6 +659,9 @@ encrypt_message:
     	BL printf
 
 	LDR r6, =sample_input     @ r6 = pointer to current character
+
+	@ Then start the loop
+	B process_loop
 	
 	process_loop:
 		LDRB r7, [r6], #1      @ r7 = current character
@@ -722,11 +673,26 @@ encrypt_message:
     		BEQ process_loop
     
     		@ Print original character
-    		# Debug print character
-    LDR r0, =debug_char
-    MOV r1, r7
-    MOV r2, r7
-    BL printf
+    		PUSH {r0-r3}
+    		LDR r0, =debug_char
+    		MOV r1, r7
+    		MOV r2, r7
+    		BL printf
+    		POP {r0-r3}
+
+		# Encrypt: c = m^e mod n
+    		MOV r0, r7
+    		MOV r1, r5
+    		MOV r2, r4
+    		BL modexp
+    		MOV r8, r0
+    
+    		# Print encrypted result
+    		PUSH {r0-r3}
+    		LDR r0, =encrypted_char
+    		MOV r1, r8
+    		BL printf
+    		POP {r0-r3}
 
 		B process_loop
 
@@ -757,7 +723,7 @@ pow:
 	# r4 - current base m
 	# r5 - exponent e
 	
-	SUB sp, sp, #4
+	SUB sp, sp, #16
 	STR lr, [sp, #0] 
 	STR r4, [sp, #4]
     	STR r5, [sp, #8]
@@ -812,47 +778,31 @@ modexp:
     	MOV r5, r1             @ r5 = exponent
     	MOV r6, r2             @ r6 = modulus
     
-    	# Handle special case (modulus 1)
-    	CMP r6, #1
-    	BNE normal_case
-    	MOV r0, #0
-    	B modexp_done
-    
-    	normal_case:
-    	# Step 1: Compute base^exp using pow
-    	MOV r0, r4          @ base
-    	MOV r1, r5          @ exponent
-    	BL pow
-    	MOV r7, r0          @ save pow result
-    
-    	# Debug: print pow result
-    	LDR r0, =modexp_debug_pow
-    	MOV r1, r7
-    	BL printf
-    
-    	# Step 2: Compute mod reduction
-    	MOV r0, r7          @ pow result
-    	MOV r1, r6          @ modulus
-    	BL mod_reduce
-    	MOV r7, r0          @ final result
-    
-    	# Debug: print final result
-    	LDR r0, =modexp_debug_result
-    	MOV r1, r7
-    	BL printf
-    
-    	modexp_done:
-    	# Return result
-    	MOV r0, r7
-    
-    	# Epilogue
-    	LDR lr, [sp, #0]
-    	LDR r4, [sp, #4]
-    	LDR r5, [sp, #8]
-    	LDR r6, [sp, #12]
-    	LDR r7, [sp, #16]
-    	ADD sp, sp, #20
-    	MOV pc, lr
+    	 @ Edge case: if modulus == 1, result is 0
+    CMP r6, #1
+    MOVEQ r0, #0
+    BEQ modexp_exit
+
+    @ Step 1: Compute pow(base, exp)
+    MOV r0, r4          @ base
+    MOV r1, r5          @ exponent
+    BL pow              @ r0 = base^exp
+    MOV r7, r0          @ r7 = pow result
+
+    @ Step 2: Compute pow_result % modulus
+    MOV r0, r7          @ dividend = pow result
+    MOV r1, r6          @ divisor = modulus
+    BL mod_reduce       @ r0 = (base^exp) mod modulus
+
+modexp_exit:
+    @ r0 already holds the result
+    LDR lr, [sp, #0]
+    LDR r4, [sp, #4]
+    LDR r5, [sp, #8]
+    LDR r6, [sp, #12]
+    LDR r7, [sp, #16]
+    ADD sp, sp, #20
+    MOV pc, lr
  
 .text
 mod_reduce:
@@ -861,6 +811,83 @@ mod_reduce:
     	BL __aeabi_idivmod     @ r1 = r0 % r1
     	MOV r0, r1             @ Return remainder
     	POP {pc}
+
+.text
+run_tests:
+    # Function to run all encryption test cases
+    # Preserves all registers except r0-r3
+    
+    SUB sp, sp, #20
+    STR lr, [sp, #0]
+    STR r4, [sp, #4]   @ save base
+    STR r5, [sp, #8]   @ save exponent
+    STR r6, [sp, #12]  @ save modulus
+    STR r7, [sp, #16]  @ save result
+    
+    # ==================================
+    # TEST CASE: Verify pow(5,3) = 125
+    # ==================================
+    LDR r0, =pow_test_msg
+    BL printf
+    
+    MOV r0, #5        @ base
+    MOV r1, #3        @ exponent
+    BL pow            @ r0 = 5^3
+    
+    # Print and verify result
+    MOV r2, r0        @ save result
+    LDR r0, =pow_test_result
+    MOV r1, #5
+    MOV r3, #3
+    BL printf
+
+    # ================================
+    # TEST CASE 2: Verify 17 mod 5 = 2
+    # ================================
+    LDR r0, =mod_test_msg
+    BL printf
+    
+    MOV r0, #17       @ dividend
+    MOV r1, #5        @ divisor
+    BL mod_reduce     @ r0 = 17 mod 5
+    
+    MOV r3, r0        @ save result
+    LDR r0, =mod_test_result
+    MOV r1, #17
+    MOV r2, #5
+    BL printf
+
+    # ============================================
+    # TEST CASE 3: Verify modexp(5,3,13) = 8
+    # ============================================
+    LDR r0, =test_case_msg
+    BL printf
+    
+    MOV r0, #5         @ base
+    MOV r1, #3         @ exponent
+    MOV r2, #13        @ modulus
+    BL modexp
+    
+    # Verify test result
+    MOV r4, r0         @ save result
+    LDR r0, =test_result_msg
+    MOV r1, #5
+    MOV r2, #3
+    MOV r3, #13
+    MOV r4, r4         @ actual result
+    BL printf
+
+   
+    # Epilogue
+    LDR lr, [sp, #0]
+    LDR r4, [sp, #4]
+    LDR r5, [sp, #8]
+    LDR r6, [sp, #12]
+    LDR r7, [sp, #16]
+    ADD sp, sp, #20
+    MOV pc, lr
+
+
 
 /* ------------------------------------ */
 /* Decrypt the message from string input */
