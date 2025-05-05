@@ -845,15 +845,23 @@ calModulo:
     STR lr, [sp, #0]
     STR r1, [sp, #4]
 
-    MOV r5, r0            // Save dividend
-    BL __aeabi_idiv       // Call division (quotient in r0)
+    MOV r4, r0           @ Save dividend
+    MOV r5, r1           @ Save divisor
+   
+    @ Compute quotient
+    BL __aeabi_idiv      @ r0 = quotient (dividend/divisor)
+    
+    @ Calculate remainder
+    MUL r2, r0, r5       @ quotient * divisor
+    SUB r0, r4, r2       @ remainder = dividend - (quotient*divisor)
+    
+    @ Ensure positive result
+    CMP r0, #0
+    ADDLT r0, r0, r5     @ If negative, add divisor once
 
-    MOV r2, r0            // r2 = quotient
-    MOV r3, r2            
-    MUL r2, r3, r1        // r2 = quotient * divisor
-
-    SUB r0, r5, r2        // r0 = dividend - (quotient * divisor)
-
+    CMP r0, #0
+    SUBEQ r0, r5, #1    
+    
     LDR lr, [sp, #0]
     LDR r1, [sp, #4]
     ADD sp, sp, #8
